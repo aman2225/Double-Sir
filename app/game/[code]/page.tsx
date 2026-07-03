@@ -17,8 +17,9 @@ import { HandCompleteModal } from "@/components/match-end/HandCompleteModal";
 import { GameOverScreen } from "@/components/match-end/GameOverScreen";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX, LogOut } from "lucide-react";
 import { SUIT_META } from "@/lib/teamTheme";
 import { useUIStore } from "@/store/useUIStore";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -62,6 +63,7 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
   const newMatch = useGameStore((s) => s.newMatch);
 
   const [frozenTrick, setFrozenTrick] = useState<{ seat: Seat; card: CardData }[] | null>(null);
+  const [exitDialogOpen, setExitDialogOpen] = useState(false);
   const seenTrickKey = useRef<number | null>(null);
   const seenHandKey = useRef<number | null>(null);
   const joinAttempted = useRef(false);
@@ -203,6 +205,9 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
               {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </Button>
             <ThemeToggle />
+            <Button variant="ghost" size="icon" aria-label="Exit game" onClick={() => setExitDialogOpen(true)}>
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -289,6 +294,32 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
           }}
         />
       )}
+
+      <Dialog open={exitDialogOpen} onOpenChange={setExitDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Leave this game?</DialogTitle>
+            <DialogDescription>
+              Your seat will show as disconnected to the other 3 players. You can rejoin with this same room code as
+              long as the match is still going.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExitDialogOpen(false)}>
+              Stay
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                leaveRoom(roomCode);
+                router.push("/");
+              }}
+            >
+              <LogOut className="mr-2 h-4 w-4" /> Leave Game
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

@@ -118,7 +118,22 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     socket.off("voice:mute-status");
     socket.off("voice:speaking");
 
+    // Guards every signaling handler below that would otherwise create a
+    // peer connection: if this player hasn't clicked "Enable Voice" yet,
+    // they have no localStream. Creating a connection anyway would attach
+    // zero local tracks to it (getOrCreatePeer only adds tracks it can see
+    // *at creation time*), and since getOrCreatePeer short-circuits on an
+    // "existing" connection, that track-less connection would silently
+    // persist even after the player later does enable voice — the classic
+    // "my mic doesn't reach them" bug. Ignoring signaling entirely until
+    // voice is enabled is safe: the moment it is, `enableVoice` emits
+    // `voice:ready` and gets a full, current roster back, so every peer
+    // connection this player needs gets created fresh, with tracks attached
+    // from the start.
+    const voiceEnabled = () => useVoiceStore.getState().voiceEnabled;
+
     socket.on("voice:roster", ({ seats }) => {
+      if (!voiceEnabled()) return;
       const { myPlayerProfileId } = get();
       for (const entry of seats) {
         set((s) => ({ remoteMuted: new Map(s.remoteMuted).set(entry.seat, entry.muted) }));
@@ -132,6 +147,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
     socket.on("voice:peer-joined", ({ seat, playerProfileId, muted }) => {
       set((s) => ({ remoteMuted: new Map(s.remoteMuted).set(seat, muted) }));
+      if (!voiceEnabled()) return;
       const { myPlayerProfileId } = get();
       if (myPlayerProfileId && myPlayerProfileId < playerProfileId) {
         initiateOfferTo(seat, playerProfileId);
@@ -143,6 +159,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     socket.on("voice:peer-left", ({ seat }) => removePeer(seat));
 
     socket.on("voice:offer", async ({ fromSeat, sdp }) => {
+      if (!voiceEnabled()) return;
       const peer = getOrCreatePeer(fromSeat, get().peers.get(fromSeat)?.playerProfileId ?? "");
       await peer.pc.setRemoteDescription(JSON.parse(sdp) as RTCSessionDescriptionInit);
       peer.remoteDescriptionSet = true;
@@ -153,6 +170,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     });
 
     socket.on("voice:answer", async ({ fromSeat, sdp }) => {
+      if (!voiceEnabled()) return;
       const peer = get().peers.get(fromSeat);
       if (!peer) return;
       await peer.pc.setRemoteDescription(JSON.parse(sdp) as RTCSessionDescriptionInit);
@@ -161,6 +179,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     });
 
     socket.on("voice:ice-candidate", async ({ fromSeat, candidate }) => {
+      if (!voiceEnabled()) return;
       const peer = get().peers.get(fromSeat);
       if (!peer) return;
       const parsed = JSON.parse(candidate) as RTCIceCandidateInit;
@@ -281,7 +300,16 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 function getOrCreatePeer(seat: Seat, playerProfileId: string): RemotePeer {
   const state = useVoiceStore.getState();
   const existing = state.peers.get(seat);
-  if (existing) return existing;
+  if (existing) {
+    // Defensive fallback: if this connection was somehow created before our
+    // local stream was ready (the signaling guards above should prevent
+    // this, but this keeps a stale connection self-healing rather than
+    // permanently one-way if it ever happens), attach our tracks now.
+    if (existing.pc.getSenders().length === 0 && state.localStream) {
+      state.localStream.getTracks().forEach((track) => existing.pc.addTrack(track, state.localStream!));
+    }
+    return existing;
+  }
 
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   const peer: RemotePeer = { seat, playerProfileId, pc, stream: null, audioEl: null, pendingCandidates: [], remoteDescriptionSet: false };
