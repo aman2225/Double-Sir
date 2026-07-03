@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx watch server.ts",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build --webpack",
     "start": "cross-env NODE_ENV=production tsx server.ts",
     "lint": "eslint",
     "test": "vitest run",
