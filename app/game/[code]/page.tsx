@@ -25,10 +25,13 @@ import { useUIStore } from "@/store/useUIStore";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { useCommsNotifications } from "@/hooks/useCommsNotifications";
 import { useTurnNotifications } from "@/hooks/useTurnNotifications";
+import { useMusicNotifications } from "@/hooks/useMusicNotifications";
 import { useChatStore } from "@/store/useChatStore";
 import { useVoiceStore } from "@/store/useVoiceStore";
 import { CommsDock } from "@/components/comms/CommsDock";
 import { EmojiQuickButton } from "@/components/comms/EmojiPicker";
+import { MusicEngine } from "@/components/music/MusicEngine";
+import { MusicPlayer } from "@/components/music/MusicPlayer";
 import { MicState } from "@/components/game-table/PlayerSeat";
 // Reusing the engine's own pure `legalPlays` helper (not reimplementing the
 // rule) purely to highlight playable cards client-side. The server always
@@ -122,6 +125,7 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
     notificationSeatNames[seat] = roomState?.players.find((p) => p.seat === seat)?.displayName ?? `Player ${seat}`;
   }
   useCommsNotifications(notificationSeatNames);
+  useMusicNotifications();
   // Computed with a fallback seat before `me`/`mySeat` are known below
   // (hooks must run unconditionally) — the hook is a no-op until it
   // reflects the real seat, same pattern as notificationSeatNames above.
@@ -285,6 +289,8 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
         otherSeats={otherSeats}
         seatNames={seatNames}
       />
+      <MusicEngine />
+      <MusicPlayer roomCode={roomCode} isHost={isHost} />
 
       {isMyTrumpPick && hand?.bidding.highestBid && (
         <TrumpPicker open declaredBid={hand.bidding.highestBid.value} onSelect={(suit) => selectTrump(roomCode, suit)} />

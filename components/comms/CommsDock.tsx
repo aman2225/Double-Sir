@@ -13,6 +13,7 @@ import { Seat } from "@/engine/types";
 import { ChatPanel } from "./ChatPanel";
 import { EmojiPicker } from "./EmojiPicker";
 import { VoiceControls } from "./VoiceControls";
+import { MasterVolumeControls } from "@/components/music/MasterVolumeControls";
 
 interface CommsDockProps {
   roomCode: string;
@@ -64,7 +65,8 @@ export function CommsDock({ roomCode, mySeat, myPlayerProfileId, otherSeats, sea
           <EmojiPicker onSelect={(emoji) => sendEmoji(roomCode, emoji)} />
         </div>
       </TabsContent>
-      <TabsContent value="voice" className="flex-1 overflow-y-auto">
+      <TabsContent value="voice" className="flex-1 space-y-3 overflow-y-auto">
+        <MasterVolumeControls />
         <VoiceControls
           roomCode={roomCode}
           mySeat={mySeat}

@@ -15,6 +15,7 @@ import { verifyPlayerToken } from "@/lib/playerToken";
 import { registerChatHandlers } from "./chatHandlers";
 import { registerEmojiHandlers } from "./emojiHandlers";
 import { registerGameHandlers } from "./gameHandlers";
+import { registerMusicHandlers } from "./musicHandlers";
 import { registerVoiceHandlers } from "./voiceHandlers";
 import { AppServer, AppSocket } from "./types";
 
@@ -34,6 +35,7 @@ export function registerSocketHandlers(io: AppServer) {
     registerVoiceHandlers(io, socket);
     registerChatHandlers(io, socket);
     registerEmojiHandlers(io, socket);
+    registerMusicHandlers(io, socket);
     registerGameHandlers(io, socket);
   });
 }

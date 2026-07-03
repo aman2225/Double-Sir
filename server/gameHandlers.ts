@@ -11,6 +11,7 @@ import { GameSession } from "./session";
 import { createSession, getSession, allSessions } from "./rooms";
 import { broadcastGameState, broadcastRoomState, requireSeated, withErrorHandling } from "./roomHelpers";
 import { sendChatHistory } from "./chatHandlers";
+import { sendMusicState } from "./musicHandlers";
 import { syncTurnTimer } from "./turnTimer";
 import { AppServer, AppSocket } from "./types";
 import {
@@ -153,6 +154,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
         socket.join(room.code);
         safeAck({ ok: true, data: { roomCode: room.code } });
         broadcastRoomState(io, session);
+        sendMusicState(socket, session);
       } catch (err) {
         console.error("room:create failed:", err);
         safeAck({ ok: false, error: "Failed to create room." });
@@ -180,6 +182,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
           broadcastRoomState(io, session);
           io.to(session.roomCode).emit("player:reconnected", { seat: existingSeat.seat });
           sendChatHistory(socket, session);
+          sendMusicState(socket, session);
           if (session.match) broadcastGameState(io, session);
           return;
         }
@@ -201,6 +204,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
         broadcastRoomState(io, session);
         io.to(session.roomCode).emit("player:joined", { seat, displayName: displayName || player.displayName });
         sendChatHistory(socket, session);
+        sendMusicState(socket, session);
       } catch (err) {
         console.error("room:join failed:", err);
         safeAck({ ok: false, error: "Failed to join room." });

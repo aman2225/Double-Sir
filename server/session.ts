@@ -5,8 +5,22 @@
 
 import { MatchState, Seat, SEATS, TeamId, teamForSeat } from "@/engine/types";
 import { ChatMessage } from "@/sockets/chatEvents";
+import { MusicState } from "@/sockets/musicEvents";
+import { MUSIC_LIBRARY } from "@/lib/musicLibrary";
 
 const CHAT_HISTORY_LIMIT = 50;
+
+function initialMusicState(): MusicState {
+  return {
+    trackId: null,
+    status: "stopped",
+    order: MUSIC_LIBRARY.map((t) => t.id),
+    index: 0,
+    shuffle: false,
+    repeat: "off",
+    positionMs: 0,
+  };
+}
 
 export interface SeatOccupant {
   seat: Seat;
@@ -40,6 +54,10 @@ export class GameSession {
   voiceReadySeats: Set<Seat> = new Set();
   mutedSeats: Set<Seat> = new Set();
   private emojiCounter = 0;
+
+  // --- Synchronized room music (server-authoritative, ephemeral) --------
+  music: MusicState = initialMusicState();
+  musicTimer?: NodeJS.Timeout;
 
   constructor(roomCode: string, roomId: string, hostPlayerProfileId: string) {
     this.roomCode = roomCode;

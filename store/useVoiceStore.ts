@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { AppSocket } from "@/sockets/client";
 import { Seat } from "@/engine/types";
 
@@ -37,6 +38,8 @@ interface VoiceState {
   remoteMuted: Map<Seat, boolean>; // their self-reported mute state
   localMutedSeats: Set<Seat>; // "mute other player" — 100% client-local
   seatVolumes: Map<Seat, number>;
+  /** Personal master multiplier applied on top of every per-seat volume — part of the Music/Voice/Effects "Individual Audio Controls" panel. */
+  masterVoiceVolume: number;
   outputDeviceId: string | null;
 
   bindToSocket: (socket: AppSocket) => void;
@@ -47,6 +50,7 @@ interface VoiceState {
   startPushToTalk: () => void;
   stopPushToTalk: () => void;
   setSeatVolume: (seat: Seat, volume: number) => void;
+  setMasterVoiceVolume: (volume: number) => void;
   toggleLocalMute: (seat: Seat) => void;
   setOutputDevice: (deviceId: string) => Promise<void>;
 }
@@ -88,7 +92,9 @@ function attachRemoteAudio(peer: RemotePeer, volume: number, outputDeviceId: str
   });
 }
 
-export const useVoiceStore = create<VoiceState>((set, get) => ({
+export const useVoiceStore = create<VoiceState>()(
+  persist(
+    (set, get) => ({
   socket: null,
   roomCode: null,
   mySeat: null,
@@ -106,6 +112,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   remoteMuted: new Map(),
   localMutedSeats: new Set(),
   seatVolumes: new Map(),
+  masterVoiceVolume: 1,
   outputDeviceId: null,
 
   bindToSocket: (socket) => {
@@ -269,7 +276,16 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   setSeatVolume: (seat, volume) => {
     set((s) => ({ seatVolumes: new Map(s.seatVolumes).set(seat, volume) }));
     const peer = get().peers.get(seat);
-    if (peer?.audioEl) peer.audioEl.volume = volume;
+    if (peer?.audioEl) peer.audioEl.volume = volume * get().masterVoiceVolume;
+  },
+
+  setMasterVoiceVolume: (volume) => {
+    const masterVoiceVolume = Math.max(0, Math.min(1, volume));
+    set({ masterVoiceVolume });
+    const { peers, seatVolumes } = get();
+    for (const [seat, peer] of peers) {
+      if (peer.audioEl) peer.audioEl.volume = (seatVolumes.get(seat) ?? 1) * masterVoiceVolume;
+    }
   },
 
   toggleLocalMute: (seat) => {
@@ -293,7 +309,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       }
     }
   },
-}));
+    }),
+    { name: "trick-taking-voice-prefs", partialize: (state) => ({ masterVoiceVolume: state.masterVoiceVolume }) }
+  )
+);
 
 // --- Peer connection lifecycle (module-level helpers, operate via the store's own get/set) ---
 
@@ -324,8 +343,8 @@ function getOrCreatePeer(seat: Seat, playerProfileId: string): RemotePeer {
 
   pc.ontrack = (event) => {
     peer.stream = event.streams[0] ?? new MediaStream([event.track]);
-    const { seatVolumes, outputDeviceId, localMutedSeats } = useVoiceStore.getState();
-    attachRemoteAudio(peer, seatVolumes.get(seat) ?? 1, outputDeviceId, localMutedSeats.has(seat));
+    const { seatVolumes, outputDeviceId, localMutedSeats, masterVoiceVolume } = useVoiceStore.getState();
+    attachRemoteAudio(peer, (seatVolumes.get(seat) ?? 1) * masterVoiceVolume, outputDeviceId, localMutedSeats.has(seat));
   };
 
   pc.oniceconnectionstatechange = () => {

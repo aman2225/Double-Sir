@@ -1,7 +1,11 @@
 // Lightweight synthesized sound effects via the Web Audio API — no binary
-// audio assets required. Each cue is a short tone/arpeggio; volume and
-// on/off state are controlled by store/useUIStore's `soundEnabled` flag,
-// which callers must check before invoking these (see hooks/useSoundEffects.ts).
+// audio assets required. Each cue is a short tone/arpeggio; on/off state
+// is controlled by store/useUIStore's `soundEnabled` flag, which callers
+// must check before invoking these (see hooks/useSoundEffects.ts). The
+// `sfxVolume` slider is applied internally here instead, so no call site
+// needs to change.
+
+import { useUIStore } from "@/store/useUIStore";
 
 let ctx: AudioContext | null = null;
 
@@ -25,9 +29,11 @@ function tone(freq: number, startOffset: number, duration: number, type: Oscilla
   osc.type = type;
   osc.frequency.value = freq;
 
+  const effectiveGain = peakGain * useUIStore.getState().sfxVolume;
+
   const start = audioCtx.currentTime + startOffset;
   gain.gain.setValueAtTime(0, start);
-  gain.gain.linearRampToValueAtTime(peakGain, start + 0.01);
+  gain.gain.linearRampToValueAtTime(effectiveGain, start + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
 
   osc.connect(gain).connect(audioCtx.destination);

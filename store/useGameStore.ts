@@ -5,6 +5,7 @@ import { getSocket, AppSocket } from "@/sockets/client";
 import { ConnectionQuality, PublicMatchState, RoomStateView } from "@/sockets/events";
 import { useChatStore } from "./useChatStore";
 import { useVoiceStore } from "./useVoiceStore";
+import { useMusicStore } from "./useMusicStore";
 
 function bucketLatency(rttMs: number): ConnectionQuality {
   if (rttMs < 150) return "good";
@@ -167,6 +168,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     // single connection lifecycle instead of scattered ad-hoc binding.
     useChatStore.getState().bindToSocket(socket);
     useVoiceStore.getState().bindToSocket(socket);
+    useMusicStore.getState().bindToSocket(socket);
 
     set({ socket, connected: socket.connected });
   },

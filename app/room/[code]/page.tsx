@@ -14,6 +14,9 @@ import { SuitBackdrop } from "@/components/lobby/SuitBackdrop";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CommsDock } from "@/components/comms/CommsDock";
 import { useCommsNotifications } from "@/hooks/useCommsNotifications";
+import { useMusicNotifications } from "@/hooks/useMusicNotifications";
+import { MusicEngine } from "@/components/music/MusicEngine";
+import { MusicPlayer } from "@/components/music/MusicPlayer";
 import { SEATS, Seat } from "@/engine/types";
 import { FELT_SURFACE, GOLD_TEXT } from "@/lib/tableTheme";
 
@@ -37,6 +40,7 @@ export default function RoomLobbyPage({ params }: { params: Promise<{ code: stri
     seatNames[seat] = roomState?.players.find((p) => p.seat === seat)?.displayName ?? `Player ${seat}`;
   }
   useCommsNotifications(seatNames);
+  useMusicNotifications();
 
   useEffect(() => {
     if (!player || !connected || joinAttempted.current) return;
@@ -131,13 +135,17 @@ export default function RoomLobbyPage({ params }: { params: Promise<{ code: stri
       </motion.div>
 
       {roomState && player && me && (
-        <CommsDock
-          roomCode={roomCode}
-          mySeat={me.seat}
-          myPlayerProfileId={player.playerProfileId}
-          otherSeats={SEATS.filter((s) => s !== me.seat)}
-          seatNames={seatNames}
-        />
+        <>
+          <CommsDock
+            roomCode={roomCode}
+            mySeat={me.seat}
+            myPlayerProfileId={player.playerProfileId}
+            otherSeats={SEATS.filter((s) => s !== me.seat)}
+            seatNames={seatNames}
+          />
+          <MusicEngine />
+          <MusicPlayer roomCode={roomCode} isHost={isHost} />
+        </>
       )}
     </main>
   );

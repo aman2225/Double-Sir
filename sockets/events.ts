@@ -8,6 +8,7 @@ import { ChatClientEvents, ChatServerEvents } from "./chatEvents";
 import { VoiceClientEvents, VoiceServerEvents } from "./voiceEvents";
 import { EmojiClientEvents, EmojiServerEvents } from "./emojiEvents";
 import { PresenceServerEvents } from "./presenceEvents";
+import { MusicClientEvents, MusicServerEvents } from "./musicEvents";
 
 export type RoomStatus = "LOBBY" | "BIDDING" | "TRUMP_SELECT" | "PLAYING" | "HAND_COMPLETE" | "MATCH_COMPLETE";
 
@@ -146,10 +147,11 @@ export interface GameServerEvents {
 // added for real-time communication. Each group has its own file above so
 // the concerns stay separable even though they share one transport.
 
-export type ClientToServerEvents = GameClientEvents & ChatClientEvents & VoiceClientEvents & EmojiClientEvents;
+export type ClientToServerEvents = GameClientEvents & ChatClientEvents & VoiceClientEvents & EmojiClientEvents & MusicClientEvents;
 
 export type ServerToClientEvents = GameServerEvents &
   ChatServerEvents &
   VoiceServerEvents &
   EmojiServerEvents &
-  PresenceServerEvents;
+  PresenceServerEvents &
+  MusicServerEvents;
