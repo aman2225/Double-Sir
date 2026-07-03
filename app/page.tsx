@@ -96,7 +96,7 @@ export default function HomePage() {
         className="relative z-10 w-full max-w-md space-y-6"
       >
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-amber-300 via-white to-sky-300 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-amber-500 via-slate-900 to-sky-600 bg-clip-text text-transparent dark:from-amber-300 dark:via-white dark:to-sky-300">
             Double Sir
           </h1>
           <p className="text-muted-foreground">A partnership trick-taking game with a twist.</p>
