@@ -30,9 +30,13 @@ export const TEAM_THEME: Record<TeamId, {
   },
 };
 
-export const SUIT_META: Record<string, { symbol: string; color: string }> = {
-  SPADES: { symbol: "♠", color: "text-slate-100" },
-  CLUBS: { symbol: "♣", color: "text-slate-100" },
-  HEARTS: { symbol: "♥", color: "text-red-500" },
-  DIAMONDS: { symbol: "♦", color: "text-red-500" },
+export const SUIT_META: Record<string, { symbol: string; color: string; faceColor: string }> = {
+  // `color` is for decorative use on dark backgrounds (trump badges, the
+  // table's center trump watermark, the suit-picker modal). `faceColor` is
+  // specifically for the white card face in PlayingCard.tsx — spades/clubs
+  // need a dark tone there, not the near-white `color` used everywhere else.
+  SPADES: { symbol: "♠", color: "text-slate-100", faceColor: "text-slate-900" },
+  CLUBS: { symbol: "♣", color: "text-slate-100", faceColor: "text-slate-900" },
+  HEARTS: { symbol: "♥", color: "text-red-500", faceColor: "text-red-600" },
+  DIAMONDS: { symbol: "♦", color: "text-red-500", faceColor: "text-red-600" },
 };

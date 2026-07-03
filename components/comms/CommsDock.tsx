@@ -6,6 +6,7 @@ import { MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/useChatStore";
 import { useUIStore } from "@/store/useUIStore";
 import { Seat } from "@/engine/types";
@@ -91,7 +92,7 @@ export function CommsDock({ roomCode, mySeat, myPlayerProfileId, otherSeats, sea
         )}
       </Button>
 
-      {/* Desktop: an in-flow floating panel beside the board — no modal backdrop, board stays fully visible and interactive. */}
+      {/* Desktop: an in-flow floating panel beside the board — no modal backdrop, board stays fully visible and interactive. Has its own header with an explicit close button, not just the toggling FAB. */}
       <div className="hidden sm:block">
         <AnimatePresence>
           {open && (
@@ -100,9 +101,15 @@ export function CommsDock({ roomCode, mySeat, myPlayerProfileId, otherSeats, sea
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 24 }}
               transition={{ duration: 0.2 }}
-              className="fixed bottom-20 right-4 top-20 z-30 w-80 rounded-2xl border border-white/10 bg-card/80 p-3 shadow-2xl backdrop-blur-xl"
+              className="fixed bottom-20 right-4 top-20 z-30 flex w-80 flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/80 p-3 shadow-2xl backdrop-blur-xl"
             >
-              {tabs}
+              <div className="mb-2 flex shrink-0 items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">Room {roomCode}</span>
+                <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={() => setOpen(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1">{tabs}</div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -111,11 +118,22 @@ export function CommsDock({ roomCode, mySeat, myPlayerProfileId, otherSeats, sea
       {/* Mobile: floating button opens a bottom sheet capped well under full height, so the table stays visible above it. */}
       <div className="sm:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="bottom" className="h-[58vh] rounded-t-2xl border-white/10 bg-card/95 p-3 backdrop-blur-xl">
-            <SheetHeader className="p-0 pb-1">
+          <SheetContent
+            side="bottom"
+            className={cn(
+              "flex flex-col overflow-hidden rounded-t-2xl border-white/10 bg-card/95 p-3 backdrop-blur-xl",
+              // `data-[side=bottom]:h-auto` ships as a built-in class on this
+              // component; a same-specificity plain `h-[58vh]` can lose to it
+              // depending on stylesheet order, silently letting the sheet grow
+              // to fit all content and pushing the tab bar off-screen. Overriding
+              // with the same `data-[side=bottom]:` prefix guarantees it wins.
+              "h-[58vh] data-[side=bottom]:h-[58vh]"
+            )}
+          >
+            <SheetHeader className="shrink-0 p-0 pb-1 pr-8">
               <SheetTitle>Room {roomCode}</SheetTitle>
             </SheetHeader>
-            {tabs}
+            <div className="min-h-0 flex-1">{tabs}</div>
           </SheetContent>
         </Sheet>
       </div>

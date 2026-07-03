@@ -13,6 +13,9 @@ interface PlayingCardProps {
   onClick?: () => void;
   className?: string;
   layoutId?: string;
+  /** Enables Framer Motion drag — see components/cards/HandFan.tsx for the drag-to-play gesture. */
+  draggable?: boolean;
+  onDragEnd?: (info: { offsetY: number }) => void;
 }
 
 const SIZE_CLASSES: Record<NonNullable<PlayingCardProps["size"]>, string> = {
@@ -21,8 +24,19 @@ const SIZE_CLASSES: Record<NonNullable<PlayingCardProps["size"]>, string> = {
   lg: "w-20 h-28 text-base rounded-xl",
 };
 
-export function PlayingCard({ card, size = "md", selected, disabled, onClick, className, layoutId }: PlayingCardProps) {
+export function PlayingCard({
+  card,
+  size = "md",
+  selected,
+  disabled,
+  onClick,
+  className,
+  layoutId,
+  draggable,
+  onDragEnd,
+}: PlayingCardProps) {
   const meta = SUIT_META[card.suit];
+  const playable = !!onClick && !disabled;
 
   return (
     <motion.button
@@ -30,16 +44,26 @@ export function PlayingCard({ card, size = "md", selected, disabled, onClick, cl
       layoutId={layoutId}
       onClick={onClick}
       disabled={disabled || !onClick}
-      whileHover={onClick && !disabled ? { y: -10 } : undefined}
-      whileTap={onClick && !disabled ? { scale: 0.96 } : undefined}
-      animate={selected ? { y: -14 } : { y: 0 }}
-      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+      drag={draggable ? "y" : false}
+      dragSnapToOrigin
+      dragElastic={0.15}
+      dragConstraints={{ top: -140, bottom: 0 }}
+      onDragEnd={(_, info) => onDragEnd?.({ offsetY: info.offset.y })}
+      whileHover={playable ? { y: -12, scale: 1.04 } : undefined}
+      whileTap={playable ? { scale: 0.95 } : undefined}
+      whileDrag={{ scale: 1.08, zIndex: 50, cursor: "grabbing" }}
+      animate={selected ? { y: -16, scale: 1.03 } : { y: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.6 }}
       className={cn(
-        "relative shrink-0 select-none border bg-white shadow-md flex flex-col justify-between p-1 font-semibold",
+        "relative shrink-0 select-none border bg-white flex flex-col justify-between p-1 font-semibold outline-none",
         SIZE_CLASSES[size],
-        selected ? "border-primary ring-2 ring-primary shadow-xl" : "border-black/10",
-        disabled ? "opacity-60 grayscale-[30%]" : onClick ? "cursor-pointer" : "cursor-default",
-        meta.color,
+        selected
+          ? "border-primary ring-2 ring-primary shadow-[0_0_18px_rgba(250,204,21,0.35)]"
+          : playable
+          ? "border-black/10 shadow-md shadow-black/30 hover:shadow-lg hover:shadow-primary/20"
+          : "border-black/10 shadow-md",
+        disabled ? "opacity-50 grayscale-[40%]" : playable ? "cursor-grab active:cursor-grabbing" : "cursor-default",
+        meta.faceColor,
         className
       )}
     >
