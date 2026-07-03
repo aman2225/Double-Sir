@@ -3,13 +3,14 @@
 import { motion } from "framer-motion";
 import { Flame, Layers } from "lucide-react";
 import { StreakState } from "@/engine/types";
+import { GLASS_PANEL } from "@/lib/tableTheme";
 import { cn } from "@/lib/utils";
 
 export function StreakIndicator({ streak, seatNames }: { streak: StreakState; seatNames: Record<number, string> }) {
   const playerName = streak.currentStreakPlayer ? seatNames[streak.currentStreakPlayer] ?? `P${streak.currentStreakPlayer}` : null;
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-card/60 px-3 py-1.5 text-xs backdrop-blur-xl">
+    <div className={cn("flex items-center gap-2 rounded-full px-3 py-1.5 text-xs", GLASS_PANEL)}>
       <Layers className="h-3.5 w-3.5 text-muted-foreground" />
       <span className="text-muted-foreground">Unclaimed:</span>
       <motion.span

@@ -11,6 +11,9 @@ import { PresenceServerEvents } from "./presenceEvents";
 
 export type RoomStatus = "LOBBY" | "BIDDING" | "TRUMP_SELECT" | "PLAYING" | "HAND_COMPLETE" | "MATCH_COMPLETE";
 
+/** Self-measured (client -> server RTT) connection quality, broadcast so every seat's panel can show it. */
+export type ConnectionQuality = "good" | "fair" | "poor";
+
 export interface RoomPlayerView {
   seat: Seat;
   team: TeamId;
@@ -58,6 +61,8 @@ export interface PublicHandState {
   currentTurn: Seat;
   tricksPlayedCount: number;
   streak: StreakState;
+  /** Epoch ms the active player's 30s card-play turn expires, or null when no turn timer is running. */
+  turnDeadline: number | null;
 }
 
 export interface PublicMatchState {
@@ -86,6 +91,8 @@ export interface GameClientEvents {
   "hand:continue": (payload: { roomCode: string }) => void;
   "match:playAgain": (payload: { roomCode: string }) => void;
   "match:newMatch": (payload: { roomCode: string }) => void;
+  "ping:latency": (ack: (ok: true) => void) => void;
+  "connection:quality": (payload: { roomCode: string; quality: ConnectionQuality }) => void;
 }
 
 export interface AckResult<T> {
@@ -128,6 +135,9 @@ export interface GameServerEvents {
   "player:disconnected": (payload: { seat: Seat }) => void;
   "player:reconnected": (payload: { seat: Seat }) => void;
   "error:invalidMove": (payload: { message: string }) => void;
+  "connection:quality": (payload: { seat: Seat; quality: ConnectionQuality }) => void;
+  /** A player's 30s card-play turn expired and the server played on their behalf. */
+  "turn:autoPlayed": (payload: { seat: Seat; card: Card }) => void;
 }
 
 // --- Combined contract -----------------------------------------------------

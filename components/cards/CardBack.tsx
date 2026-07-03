@@ -20,8 +20,10 @@ export function CardBack({ size = "md", className, layoutId }: CardBackProps) {
     <motion.div
       layoutId={layoutId}
       className={cn(
-        "shrink-0 border border-white/20 shadow-md bg-gradient-to-br from-primary/80 via-primary to-primary/60",
-        "bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[length:8px_8px]",
+        "shrink-0 border-2 shadow-md",
+        "border-[var(--gold,#d4af37)]/60 bg-gradient-to-br from-[var(--felt-deep,#0f2f22)] via-[var(--felt,#1f4a34)] to-[var(--felt-deep,#0f2f22)]",
+        "bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.25)_1px,transparent_1px)] bg-[length:9px_9px]",
+        "relative after:absolute after:inset-1 after:rounded-[inherit] after:border after:border-[var(--gold,#d4af37)]/25",
         SIZE_CLASSES[size],
         className
       )}

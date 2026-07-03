@@ -70,4 +70,16 @@ export const sounds = {
     tone(440, 0.06, 0.1, "sine", 0.05);
   },
   muteToggle: () => tone(500, 0, 0.05, "square", 0.03),
+
+  // --- Premium table cues -------------------------------------------------
+  trumpSelect: () => {
+    tone(392, 0, 0.1, "triangle", 0.06);
+    tone(587, 0.07, 0.16, "triangle", 0.06);
+  },
+  yourTurn: () => {
+    tone(587, 0, 0.09, "sine", 0.06);
+    tone(784, 0.06, 0.12, "sine", 0.06);
+  },
+  timerWarning: () => tone(440, 0, 0.08, "triangle", 0.045),
+  timerCritical: () => tone(330, 0, 0.1, "square", 0.05),
 };

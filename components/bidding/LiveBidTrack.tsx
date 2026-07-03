@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { BidEntry, SEATS, Seat, teamForSeat } from "@/engine/types";
 import { TEAM_THEME } from "@/lib/teamTheme";
+import { GLASS_PANEL } from "@/lib/tableTheme";
 import { cn } from "@/lib/utils";
 
 interface LiveBidTrackProps {
@@ -17,7 +18,7 @@ export function LiveBidTrack({ entries, currentSeat, seatNames, biddingComplete 
   for (const entry of entries) latestBySeat.set(entry.seat, entry);
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-card/60 px-3 py-1.5 backdrop-blur-xl">
+    <div className={cn("flex items-center gap-2 rounded-full px-3 py-1.5", GLASS_PANEL)}>
       {SEATS.map((seat) => {
         const entry = latestBySeat.get(seat);
         const team = TEAM_THEME[teamForSeat(seat)];
@@ -31,7 +32,7 @@ export function LiveBidTrack({ entries, currentSeat, seatNames, biddingComplete 
               className={cn(
                 "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
                 isActive
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-[var(--gold)] text-black shadow-[0_0_10px_var(--gold-soft)]"
                   : entry?.value !== undefined
                   ? "bg-white/15"
                   : entry

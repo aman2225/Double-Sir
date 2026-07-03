@@ -7,7 +7,7 @@
 import { HandState, MatchState, SEATS, Seat } from "@/engine/types";
 import { PublicHandState, PublicMatchState } from "./events";
 
-function redactHand(hand: HandState, viewerSeat: Seat): PublicHandState {
+function redactHand(hand: HandState, viewerSeat: Seat, turnDeadline: number | null): PublicHandState {
   return {
     handNumber: hand.handNumber,
     dealerSeat: hand.dealerSeat,
@@ -29,10 +29,11 @@ function redactHand(hand: HandState, viewerSeat: Seat): PublicHandState {
     currentTurn: hand.currentTurn,
     tricksPlayedCount: hand.tricksPlayed.length,
     streak: hand.streak,
+    turnDeadline,
   };
 }
 
-export function redactMatchForSeat(match: MatchState, viewerSeat: Seat): PublicMatchState {
+export function redactMatchForSeat(match: MatchState, viewerSeat: Seat, turnDeadline: number | null): PublicMatchState {
   return {
     roomCode: match.roomId,
     teamAPenalty: match.teamAPenalty,
@@ -40,6 +41,6 @@ export function redactMatchForSeat(match: MatchState, viewerSeat: Seat): PublicM
     dealerSeat: match.dealerSeat,
     handNumber: match.handNumber,
     winningTeam: match.winningTeam,
-    currentHand: match.currentHand ? redactHand(match.currentHand, viewerSeat) : undefined,
+    currentHand: match.currentHand ? redactHand(match.currentHand, viewerSeat, turnDeadline) : undefined,
   };
 }

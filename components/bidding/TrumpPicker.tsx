@@ -4,6 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Suit } from "@/engine/types";
 import { SUIT_META } from "@/lib/teamTheme";
 import { cn } from "@/lib/utils";
+import { sounds } from "@/lib/sounds";
+import { useUIStore } from "@/store/useUIStore";
 
 const SUITS: Suit[] = ["SPADES", "HEARTS", "DIAMONDS", "CLUBS"];
 
@@ -14,11 +16,18 @@ interface TrumpPickerProps {
 }
 
 export function TrumpPicker({ open, declaredBid, onSelect }: TrumpPickerProps) {
+  const soundEnabled = useUIStore((s) => s.soundEnabled);
+
+  function handleSelect(suit: Suit) {
+    if (soundEnabled) sounds.trumpSelect();
+    onSelect(suit);
+  }
+
   return (
     <Dialog open={open}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
+      <DialogContent showCloseButton={false} className="border-[var(--gold)]/30 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>You won the bid at {declaredBid}!</DialogTitle>
+          <DialogTitle className="text-[var(--gold)]">You won the bid at {declaredBid}!</DialogTitle>
           <DialogDescription>Choose the trump suit for this hand.</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 py-2">
@@ -27,9 +36,9 @@ export function TrumpPicker({ open, declaredBid, onSelect }: TrumpPickerProps) {
             return (
               <button
                 key={suit}
-                onClick={() => onSelect(suit)}
+                onClick={() => handleSelect(suit)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-6 transition-all hover:scale-105 hover:bg-white/10 active:scale-95",
+                  "flex flex-col items-center gap-1 rounded-xl border border-[var(--gold)]/20 bg-white/5 py-6 transition-all hover:scale-105 hover:border-[var(--gold)]/60 hover:bg-[var(--gold)]/10 hover:shadow-[0_0_20px_var(--gold-soft)] active:scale-95",
                   meta.color
                 )}
               >

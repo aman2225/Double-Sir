@@ -43,9 +43,10 @@ export function broadcastRoomState(io: AppServer, session: GameSession) {
 
 export function broadcastGameState(io: AppServer, session: GameSession) {
   if (!session.match) return;
+  const turnDeadline = session.turnDeadline ?? null;
   for (const occupant of session.seats.values()) {
     if (occupant.socketId) {
-      io.to(occupant.socketId).emit("game:state", redactMatchForSeat(session.match, occupant.seat));
+      io.to(occupant.socketId).emit("game:state", redactMatchForSeat(session.match, occupant.seat, turnDeadline));
     }
   }
 }

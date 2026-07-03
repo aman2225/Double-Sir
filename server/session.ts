@@ -30,6 +30,11 @@ export class GameSession {
   matchDbId?: string;
   handDbId?: string;
 
+  // --- Turn timer (card-play turns only, server-authoritative) ----------
+  /** Epoch ms the active player's current play-turn expires, or undefined when no turn is in progress. */
+  turnDeadline?: number;
+  turnTimer?: NodeJS.Timeout;
+
   // --- Real-time communication state (ephemeral, not persisted) ---------
   chatHistory: ChatMessage[] = [];
   voiceReadySeats: Set<Seat> = new Set();

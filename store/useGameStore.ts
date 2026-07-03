@@ -2,9 +2,17 @@ import { create } from "zustand";
 import { toast } from "sonner";
 import { Card, Suit, TrickResult, StreakState, TeamId, Seat } from "@/engine/types";
 import { getSocket, AppSocket } from "@/sockets/client";
-import { PublicMatchState, RoomStateView } from "@/sockets/events";
+import { ConnectionQuality, PublicMatchState, RoomStateView } from "@/sockets/events";
 import { useChatStore } from "./useChatStore";
 import { useVoiceStore } from "./useVoiceStore";
+
+function bucketLatency(rttMs: number): ConnectionQuality {
+  if (rttMs < 150) return "good";
+  if (rttMs < 400) return "fair";
+  return "poor";
+}
+
+let pingInterval: ReturnType<typeof setInterval> | null = null;
 
 export interface TrickResolvedEvent {
   trick: TrickResult;
@@ -35,6 +43,12 @@ export interface MatchCompleteEvent {
   key: number;
 }
 
+export interface AutoPlayEvent {
+  seat: Seat;
+  card: Card;
+  key: number;
+}
+
 interface GameStoreState {
   socket: AppSocket | null;
   connected: boolean;
@@ -44,6 +58,9 @@ interface GameStoreState {
   lastTrickEvent: TrickResolvedEvent | null;
   lastHandComplete: HandCompleteEvent | null;
   lastMatchComplete: MatchCompleteEvent | null;
+  lastAutoPlay: AutoPlayEvent | null;
+  /** Self-measured round-trip quality per seat, broadcast by each client. */
+  connectionQualityBySeat: Map<Seat, ConnectionQuality>;
   /** Tracked so a dropped connection can silently rejoin the same seat once Socket.IO auto-reconnects. */
   currentRoomCode: string | null;
   currentDisplayName: string | null;
@@ -75,6 +92,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   lastTrickEvent: null,
   lastHandComplete: null,
   lastMatchComplete: null,
+  lastAutoPlay: null,
+  connectionQualityBySeat: new Map(),
   currentRoomCode: null,
   currentDisplayName: null,
 
@@ -119,6 +138,28 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       toast.success(`${name} reconnected`);
     });
     socket.on("error:invalidMove", (payload) => set({ lastError: payload.message }));
+    socket.on("connection:quality", ({ seat, quality }) =>
+      set((s) => ({ connectionQualityBySeat: new Map(s.connectionQualityBySeat).set(seat, quality) }))
+    );
+    socket.on("turn:autoPlayed", (payload) => set({ lastAutoPlay: { ...payload, key: eventKeyCounter++ } }));
+
+    // Lightweight self-measured latency ping, broadcast as a 3-tier quality
+    // so every seat's panel can show a real (not decorative) connection dot.
+    if (pingInterval) clearInterval(pingInterval);
+    let lastReportedQuality: ConnectionQuality | null = null;
+    const pingOnce = () => {
+      const { currentRoomCode } = get();
+      if (!socket.connected || !currentRoomCode) return;
+      const sentAt = Date.now();
+      socket.emit("ping:latency", () => {
+        const quality = bucketLatency(Date.now() - sentAt);
+        if (quality === lastReportedQuality) return;
+        lastReportedQuality = quality;
+        socket.emit("connection:quality", { roomCode: currentRoomCode, quality });
+      });
+    };
+    pingOnce();
+    pingInterval = setInterval(pingOnce, 8000);
 
     // Every comms concern (chat/emoji + WebRTC voice signaling) is
     // multiplexed over this same authenticated connection — wire their
@@ -133,8 +174,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   disconnect: () => {
     if (useVoiceStore.getState().voiceEnabled) useVoiceStore.getState().disableVoice();
     useChatStore.getState().clear();
+    if (pingInterval) {
+      clearInterval(pingInterval);
+      pingInterval = null;
+    }
     get().socket?.disconnect();
-    set({ socket: null, connected: false, roomState: null, gameState: null, currentRoomCode: null, currentDisplayName: null });
+    set({
+      socket: null,
+      connected: false,
+      roomState: null,
+      gameState: null,
+      connectionQualityBySeat: new Map(),
+      currentRoomCode: null,
+      currentDisplayName: null,
+    });
   },
 
   createRoom: (displayName) =>

@@ -18,9 +18,12 @@ export function PenaltyBar({ team, penalty }: { team: TeamId; penalty: number })
           {penalty} / {MATCH_LOSS_THRESHOLD}
         </span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-white/10 shadow-inner">
         <motion.div
-          className={cn("h-full rounded-full", danger ? "bg-destructive" : theme.bg)}
+          className={cn(
+            "h-full rounded-full",
+            danger ? "bg-destructive shadow-[0_0_8px_rgba(248,113,113,0.6)]" : theme.bg
+          )}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ type: "spring", stiffness: 120, damping: 20 }}

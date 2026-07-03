@@ -3,6 +3,8 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { MAX_BID, MIN_OPENING_BID, Seat } from "@/engine/types";
+import { GLASS_PANEL, GOLD_GLOW } from "@/lib/tableTheme";
+import { cn } from "@/lib/utils";
 
 interface BidPanelProps {
   mySeat: Seat;
@@ -20,7 +22,7 @@ export function BidPanel({ mySeat, highestBid, onBid }: BidPanelProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-card/80 p-3 shadow-2xl backdrop-blur-xl"
+      className={cn("flex flex-col items-center gap-2 rounded-2xl p-3", GLASS_PANEL, GOLD_GLOW)}
     >
       <p className="text-xs font-medium text-muted-foreground">
         {isPlayer1 ? "You must open the bidding (7-13)" : `Bid higher than ${highestBid?.value ?? "the opening bid"}, or pass`}
@@ -30,7 +32,12 @@ export function BidPanel({ mySeat, highestBid, onBid }: BidPanelProps) {
           <span className="text-xs text-muted-foreground">No valid bids remain.</span>
         ) : (
           options.map((value) => (
-            <Button key={value} size="sm" variant="secondary" onClick={() => onBid(value)}>
+            <Button
+              key={value}
+              size="sm"
+              onClick={() => onBid(value)}
+              className="border border-[var(--gold)]/40 bg-[var(--gold)]/15 font-semibold text-[var(--gold)] hover:bg-[var(--gold)]/30 hover:text-[var(--gold)]"
+            >
               {value}
             </Button>
           ))

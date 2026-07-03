@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence } from "framer-motion";
-import { Card as CardData, cardId } from "@/engine/types";
+import { Card as CardData, Suit, cardId } from "@/engine/types";
 import { PlayingCard } from "./PlayingCard";
 import { useUIStore } from "@/store/useUIStore";
 import { sounds } from "@/lib/sounds";
@@ -12,6 +12,7 @@ interface HandFanProps {
   legalCards: CardData[];
   isMyTurn: boolean;
   onPlay: (card: CardData) => void;
+  trumpSuit?: Suit;
 }
 
 // Dragging a card up at least this many pixels commits the play — a light
@@ -19,7 +20,7 @@ interface HandFanProps {
 // well clear of an accidental small nudge.
 const DRAG_PLAY_THRESHOLD_PX = -70;
 
-export function HandFan({ cards, legalCards, isMyTurn, onPlay }: HandFanProps) {
+export function HandFan({ cards, legalCards, isMyTurn, onPlay, trumpSuit }: HandFanProps) {
   const selectedCard = useUIStore((s) => s.selectedCard);
   const selectCard = useUIStore((s) => s.selectCard);
   const soundEnabled = useUIStore((s) => s.soundEnabled);
@@ -72,6 +73,7 @@ export function HandFan({ cards, legalCards, isMyTurn, onPlay }: HandFanProps) {
                   onClick={playable ? () => handleCardClick(card) : undefined}
                   draggable={playable}
                   onDragEnd={({ offsetY }) => handleDragEnd(card, offsetY)}
+                  trumpSuit={trumpSuit}
                 />
               );
             })}

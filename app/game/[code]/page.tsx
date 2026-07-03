@@ -24,6 +24,7 @@ import { SUIT_META } from "@/lib/teamTheme";
 import { useUIStore } from "@/store/useUIStore";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { useCommsNotifications } from "@/hooks/useCommsNotifications";
+import { useTurnNotifications } from "@/hooks/useTurnNotifications";
 import { useChatStore } from "@/store/useChatStore";
 import { useVoiceStore } from "@/store/useVoiceStore";
 import { CommsDock } from "@/components/comms/CommsDock";
@@ -52,6 +53,7 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
   const lastMatchComplete = useGameStore((s) => s.lastMatchComplete);
   const lastError = useGameStore((s) => s.lastError);
   const clearError = useGameStore((s) => s.clearError);
+  const connectionQualityBySeat = useGameStore((s) => s.connectionQualityBySeat);
 
   const joinRoom = useGameStore((s) => s.joinRoom);
   const leaveRoom = useGameStore((s) => s.leaveRoom);
@@ -120,6 +122,11 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
     notificationSeatNames[seat] = roomState?.players.find((p) => p.seat === seat)?.displayName ?? `Player ${seat}`;
   }
   useCommsNotifications(notificationSeatNames);
+  // Computed with a fallback seat before `me`/`mySeat` are known below
+  // (hooks must run unconditionally) — the hook is a no-op until it
+  // reflects the real seat, same pattern as notificationSeatNames above.
+  const tentativeMySeat = (roomState?.players.find((p) => p.playerProfileId === player?.playerProfileId)?.seat ?? 1) as Seat;
+  useTurnNotifications(tentativeMySeat, notificationSeatNames);
 
   const connectionState = useVoiceStore((s) => s.connectionState);
   const speakingSeats = useVoiceStore((s) => s.speakingSeats);
@@ -129,7 +136,7 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
 
   if (!roomState || !gameState || !player) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-gradient-to-br from-background via-background to-primary/10">
+      <main className="table-theme flex flex-1 items-center justify-center bg-[var(--felt-deep)]">
         <p className="text-muted-foreground">Loading table...</p>
       </main>
     );
@@ -153,12 +160,16 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
   for (const seat of SEATS) {
     const roomPlayer = roomState.players.find((p) => p.seat === seat);
     const publicHand = hand?.players.find((p) => p.seat === seat);
+    const team = teamForSeat(seat);
     seatInfo[seat] = {
       seat,
       displayName: roomPlayer?.displayName ?? `Player ${seat}`,
-      team: teamForSeat(seat),
+      team,
       connected: roomPlayer?.connected ?? false,
       cardCount: publicHand?.cardCount ?? 0,
+      capturedHands: hand ? (team === "A" ? hand.streak.teamAHands : hand.streak.teamBHands) : undefined,
+      penaltyPoints: team === "A" ? gameState.teamAPenalty : gameState.teamBPenalty,
+      connectionQuality: connectionQualityBySeat.get(seat),
     };
   }
   const seatNames = notificationSeatNames;
@@ -179,12 +190,13 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
   const isMyTrumpPick = phase === "TRUMP_SELECTION" && hand?.bidding.highestBid?.seat === mySeat;
 
   const displayedTrick = frozenTrick ?? hand?.currentTrick ?? [];
+  const displayedWinningSeat = frozenTrick ? lastTrickEvent?.trick.winningSeat : undefined;
 
   const bidderName = lastHandComplete ? seatNames[lastHandComplete.bidderSeat] : "";
   const showHandCompleteModal = phase === "COMPLETE" && !gameState.winningTeam && !!lastHandComplete;
 
   return (
-    <main className="relative flex flex-1 flex-col overflow-hidden bg-gradient-to-br from-emerald-950 via-background to-background">
+    <main className="table-theme relative flex flex-1 flex-col overflow-hidden bg-[var(--felt-deep)] text-foreground">
       {/* HUD */}
       <div className="z-10 flex flex-col gap-2 border-b border-white/5 bg-black/20 px-3 py-2 backdrop-blur-xl sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -239,6 +251,9 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
         phase={phase}
         micStateBySeat={micStateBySeat}
         reactions={reactions}
+        winningSeat={displayedWinningSeat}
+        turnDeadline={hand?.turnDeadline}
+        handNumber={gameState.handNumber}
       />
 
       {/* My hand + bidding controls */}
@@ -252,7 +267,13 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
         </AnimatePresence>
 
         <div className="flex w-full items-end justify-center gap-2 px-2">
-          <HandFan cards={myHand} legalCards={legalCards} isMyTurn={isMyPlayTurn} onPlay={(card) => playCard(roomCode, card)} />
+          <HandFan
+            cards={myHand}
+            legalCards={legalCards}
+            isMyTurn={isMyPlayTurn}
+            onPlay={(card) => playCard(roomCode, card)}
+            trumpSuit={hand?.trumpSuit}
+          />
           <EmojiQuickButton onSelect={(emoji) => sendEmoji(roomCode, emoji)} className="mb-6 h-9 w-9 shrink-0 rounded-full bg-white/10" />
         </div>
       </div>

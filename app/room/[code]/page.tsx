@@ -15,6 +15,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CommsDock } from "@/components/comms/CommsDock";
 import { useCommsNotifications } from "@/hooks/useCommsNotifications";
 import { SEATS, Seat } from "@/engine/types";
+import { FELT_SURFACE, GOLD_TEXT } from "@/lib/tableTheme";
 
 export default function RoomLobbyPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
@@ -67,7 +68,7 @@ export default function RoomLobbyPage({ params }: { params: Promise<{ code: stri
   const me = roomState?.players.find((p) => p.playerProfileId === player?.playerProfileId);
 
   return (
-    <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-primary/10 p-4">
+    <main className={`table-theme relative flex flex-1 items-center justify-center overflow-hidden p-4 ${FELT_SURFACE}`}>
       <SuitBackdrop />
       <ThemeToggle className="fixed right-3 top-3 z-50" />
 
@@ -77,10 +78,10 @@ export default function RoomLobbyPage({ params }: { params: Promise<{ code: stri
         transition={{ duration: 0.4 }}
         className="relative z-10 w-full max-w-2xl"
       >
-        <Card className="border-white/10 bg-card/60 backdrop-blur-xl shadow-2xl">
+        <Card className="border-[var(--gold)]/20 bg-black/40 backdrop-blur-xl shadow-2xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-2xl">Game Lobby</CardTitle>
+              <CardTitle className={`text-2xl ${GOLD_TEXT}`}>Game Lobby</CardTitle>
               <p className="text-sm text-muted-foreground">Share this code so friends can join.</p>
             </div>
             <Button variant="outline" size="sm" onClick={handleCopy} className="font-mono text-lg tracking-widest">

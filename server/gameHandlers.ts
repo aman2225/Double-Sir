@@ -6,11 +6,12 @@
 import { randomBytes } from "node:crypto";
 import { applyAction, InvalidActionError } from "@/engine/reducer";
 import { createMatch, prepareNextHand } from "@/engine/match";
-import { Suit, Card } from "@/engine/types";
+import { Seat, Suit, Card } from "@/engine/types";
 import { GameSession } from "./session";
 import { createSession, getSession, allSessions } from "./rooms";
 import { broadcastGameState, broadcastRoomState, requireSeated, withErrorHandling } from "./roomHelpers";
 import { sendChatHistory } from "./chatHandlers";
+import { syncTurnTimer } from "./turnTimer";
 import { AppServer, AppSocket } from "./types";
 import {
   addRoomPlayer,
@@ -51,6 +52,87 @@ async function startNewMatchAndHand(session: GameSession) {
   session.matchDbId = matchRow.id;
   session.match = createMatch(session.roomCode);
   await startHandFlow(session);
+}
+
+/**
+ * Applies a PLAY_CARD action and everything that follows from it (trick/
+ * hand/match persistence + emits, turn-timer resync, state broadcast).
+ * Shared by the real `card:play` socket handler and server/turnTimer.ts's
+ * auto-play-on-timeout — identical logic either way, just a different
+ * source for `seat`/`card`.
+ */
+export async function applyCardPlay(io: AppServer, session: GameSession, seat: Seat, card: Card) {
+  const roomCode = session.roomCode;
+  const result = applyAction(session.match!, { type: "PLAY_CARD", seat, card });
+  session.match = result.state;
+
+  for (const event of result.events) {
+    if (event.type === "TRICK_RESOLVED") {
+      const winningOccupant = session.seats.get(event.trick.winningSeat);
+      await recordTrickInDb(
+        session.handDbId!,
+        event.trick.trickNumber,
+        event.trick.leadSuit,
+        event.trick.winningSeat,
+        winningOccupant?.playerProfileId,
+        event.trick.cards,
+        event.streak.currentStreakPlayer,
+        event.streak.currentStreakCount,
+        event.streak.unclaimedHands
+      );
+      await snapshotHandState(session.handDbId!, session.match!.currentHand!);
+      io.to(roomCode).emit("trick:resolved", {
+        trick: event.trick,
+        streak: event.streak,
+        handsCollected: event.handsCollected,
+      });
+    }
+
+    if (event.type === "HAND_COMPLETE") {
+      await completeHandInDb(session.handDbId!, {
+        teamAHands: event.teamAHands,
+        teamBHands: event.teamBHands,
+        bidSuccess: event.bidSuccess,
+        penaltyApplied: event.penaltyApplied,
+        penaltyTeam: event.penaltyTeam,
+      });
+      await updateMatchPenalties(session.matchDbId!, session.match!.teamAPenalty, session.match!.teamBPenalty);
+
+      const bidderOccupant = session.seats.get(event.bidderSeat);
+      if (bidderOccupant) await bumpBidderStats(bidderOccupant.playerProfileId, event.bidSuccess);
+
+      const handWinningTeam = event.teamAHands > event.teamBHands ? "A" : "B";
+      for (const occ of session.seats.values()) {
+        await bumpPlayerStatsForHand(occ.playerProfileId, occ.team === handWinningTeam);
+      }
+
+      session.status = "HAND_COMPLETE";
+      await setRoomStatus(session.roomId, "HAND_COMPLETE");
+      io.to(roomCode).emit("hand:complete", {
+        ...event,
+        teamAPenalty: session.match!.teamAPenalty,
+        teamBPenalty: session.match!.teamBPenalty,
+      });
+    }
+
+    if (event.type === "MATCH_COMPLETE") {
+      await completeMatchInDb(session.matchDbId!, event.winningTeam);
+      for (const occ of session.seats.values()) {
+        await bumpPlayerStatsForMatch(occ.playerProfileId, occ.team === event.winningTeam);
+      }
+      session.status = "MATCH_COMPLETE";
+      await setRoomStatus(session.roomId, "MATCH_COMPLETE");
+      io.to(roomCode).emit("match:complete", {
+        winningTeam: event.winningTeam,
+        teamAPenalty: event.teamAPenalty,
+        teamBPenalty: event.teamBPenalty,
+        handsPlayed: session.match!.completedHands.length,
+      });
+    }
+  }
+
+  syncTurnTimer(io, session, applyCardPlay);
+  broadcastGameState(io, session);
 }
 
 export function registerGameHandlers(io: AppServer, socket: AppSocket) {
@@ -156,6 +238,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
       if (session.match) throw new InvalidActionError("Game already started.");
 
       await startNewMatchAndHand(session);
+      syncTurnTimer(io, session, applyCardPlay);
       broadcastRoomState(io, session);
       broadcastGameState(io, session);
     });
@@ -201,6 +284,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
       await setRoomStatus(session.roomId, "PLAYING");
       io.to(roomCode).emit("trump:selected", { suit: suit as Suit });
 
+      syncTurnTimer(io, session, applyCardPlay);
       broadcastGameState(io, session);
     });
   });
@@ -209,76 +293,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
     withErrorHandling(socket, async () => {
       const { session, occupant } = requireSeated(roomCode, player.playerProfileId);
       if (!session.match) throw new InvalidActionError("No hand is in progress.");
-
-      const result = applyAction(session.match, { type: "PLAY_CARD", seat: occupant.seat, card: card as Card });
-      session.match = result.state;
-
-      for (const event of result.events) {
-        if (event.type === "TRICK_RESOLVED") {
-          const winningOccupant = session.seats.get(event.trick.winningSeat);
-          await recordTrickInDb(
-            session.handDbId!,
-            event.trick.trickNumber,
-            event.trick.leadSuit,
-            event.trick.winningSeat,
-            winningOccupant?.playerProfileId,
-            event.trick.cards,
-            event.streak.currentStreakPlayer,
-            event.streak.currentStreakCount,
-            event.streak.unclaimedHands
-          );
-          await snapshotHandState(session.handDbId!, session.match!.currentHand!);
-          io.to(roomCode).emit("trick:resolved", {
-            trick: event.trick,
-            streak: event.streak,
-            handsCollected: event.handsCollected,
-          });
-        }
-
-        if (event.type === "HAND_COMPLETE") {
-          await completeHandInDb(session.handDbId!, {
-            teamAHands: event.teamAHands,
-            teamBHands: event.teamBHands,
-            bidSuccess: event.bidSuccess,
-            penaltyApplied: event.penaltyApplied,
-            penaltyTeam: event.penaltyTeam,
-          });
-          await updateMatchPenalties(session.matchDbId!, session.match!.teamAPenalty, session.match!.teamBPenalty);
-
-          const bidderOccupant = session.seats.get(event.bidderSeat);
-          if (bidderOccupant) await bumpBidderStats(bidderOccupant.playerProfileId, event.bidSuccess);
-
-          const handWinningTeam = event.teamAHands > event.teamBHands ? "A" : "B";
-          for (const occ of session.seats.values()) {
-            await bumpPlayerStatsForHand(occ.playerProfileId, occ.team === handWinningTeam);
-          }
-
-          session.status = "HAND_COMPLETE";
-          await setRoomStatus(session.roomId, "HAND_COMPLETE");
-          io.to(roomCode).emit("hand:complete", {
-            ...event,
-            teamAPenalty: session.match!.teamAPenalty,
-            teamBPenalty: session.match!.teamBPenalty,
-          });
-        }
-
-        if (event.type === "MATCH_COMPLETE") {
-          await completeMatchInDb(session.matchDbId!, event.winningTeam);
-          for (const occ of session.seats.values()) {
-            await bumpPlayerStatsForMatch(occ.playerProfileId, occ.team === event.winningTeam);
-          }
-          session.status = "MATCH_COMPLETE";
-          await setRoomStatus(session.roomId, "MATCH_COMPLETE");
-          io.to(roomCode).emit("match:complete", {
-            winningTeam: event.winningTeam,
-            teamAPenalty: event.teamAPenalty,
-            teamBPenalty: event.teamBPenalty,
-            handsPlayed: session.match!.completedHands.length,
-          });
-        }
-      }
-
-      broadcastGameState(io, session);
+      await applyCardPlay(io, session, occupant.seat, card as Card);
     });
   });
 
@@ -297,6 +312,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
 
       session.match = prepareNextHand(session.match);
       await startHandFlow(session);
+      syncTurnTimer(io, session, applyCardPlay);
       broadcastRoomState(io, session);
       broadcastGameState(io, session);
     });
@@ -311,6 +327,7 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
       if (!session.match?.winningTeam) throw new InvalidActionError("The current match has not ended yet.");
 
       await startNewMatchAndHand(session);
+      syncTurnTimer(io, session, applyCardPlay);
       broadcastRoomState(io, session);
       broadcastGameState(io, session);
     });
@@ -328,7 +345,20 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
       session.handDbId = undefined;
       session.status = "LOBBY";
       await setRoomStatus(session.roomId, "LOBBY");
+      // Never calls broadcastGameState (no match) — clear any lingering timer explicitly.
+      syncTurnTimer(io, session, applyCardPlay);
       broadcastRoomState(io, session);
+    });
+  });
+
+  socket.on("ping:latency", (ack) => {
+    if (typeof ack === "function") ack(true);
+  });
+
+  socket.on("connection:quality", ({ roomCode, quality }) => {
+    withErrorHandling(socket, async () => {
+      const { occupant } = requireSeated(roomCode, player.playerProfileId);
+      io.to(roomCode).emit("connection:quality", { seat: occupant.seat, quality });
     });
   });
 
