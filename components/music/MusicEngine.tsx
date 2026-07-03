@@ -179,11 +179,15 @@ export function MusicEngine() {
       {needsGesture && (
         <motion.button
           type="button"
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
+          exit={{ opacity: 0, y: -10 }}
           onClick={handleEnableAudio}
-          className={`fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium sm:bottom-4 ${GLASS_PANEL}`}
+          // Top-center, not bottom — the bottom band is the hand-of-cards/
+          // bid-panel zone on the game page and the primary-action zone on
+          // the lobby page; a fixed element there risks covering them the
+          // same way an earlier MusicPlayer version did (see MusicPlayer.tsx).
+          className={`fixed left-1/2 top-16 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium ${GLASS_PANEL}`}
         >
           <Volume2 className="h-4 w-4 text-[var(--gold,#facc15)]" /> Tap to enable audio
         </motion.button>

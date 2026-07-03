@@ -124,14 +124,16 @@ export default function HomePage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Choose a room tier</p>
-                <EntryFeeTierPicker value={entryFee} onChange={setEntryFee} balance={walletBalance} />
+                {/* Balance defaults to Infinity until the wallet finishes its first load, so tiers
+                    don't flash "Insufficient coins" for every option during that brief window. */}
+                <EntryFeeTierPicker value={entryFee} onChange={setEntryFee} balance={walletLoaded ? walletBalance : Infinity} />
               </div>
 
               <Button
                 className="w-full"
                 size="lg"
                 onClick={handleCreateRoom}
-                disabled={busy !== null || !connected || walletBalance < entryFee}
+                disabled={busy !== null || !connected || (walletLoaded && walletBalance < entryFee)}
               >
                 {busy === "create" ? "Creating..." : `Create Room (${entryFee.toLocaleString()} coins)`}
               </Button>
