@@ -1,0 +1,223 @@
+// Prisma schema for the 4-player trick-taking card game.
+//
+// Persistence strategy: the live game engine state is authoritative
+// in-memory per active GameSession (see server/session.ts) for fast-path
+// gameplay. Every state-changing action also appends to the append-only
+// Bid/Trick tables and updates Hand/Match summaries, and writes a
+// stateSnapshot JSON blob on Hand after every trick so a crashed server can
+// rehydrate sessions on boot / reconnect without replaying the full event
+// log.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String? // null for OAuth-only accounts
+  name          String
+  avatarUrl     String?
+  googleId      String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  playerProfile PlayerProfile?
+
+  @@map("users")
+}
+
+model GuestProfile {
+  id           String   @id @default(cuid())
+  displayName  String
+  deviceToken  String   @unique // signed cookie value identifying this guest device
+  createdAt    DateTime @default(now())
+
+  playerProfile PlayerProfile?
+
+  @@map("guest_profiles")
+}
+
+// Unifies authenticated users and guests behind one identity for gameplay,
+// stats, and history so the rest of the schema never needs to branch on
+// "is this a guest or a real account".
+model PlayerProfile {
+  id             String   @id @default(cuid())
+  userId         String?  @unique
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestProfileId String?  @unique
+  guestProfile   GuestProfile? @relation(fields: [guestProfileId], references: [id], onDelete: Cascade)
+
+  displayName    String
+  avatarUrl      String?
+
+  // Aggregate stats, updated at the end of each match.
+  matchesPlayed  Int      @default(0)
+  matchesWon     Int      @default(0)
+  handsPlayed    Int      @default(0)
+  handsWon       Int      @default(0)
+  bidsWon        Int      @default(0)
+  bidsMade       Int      @default(0) // bids that reached the declared count
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  roomPlayers    RoomPlayer[]
+  bids           Bid[]
+  tricks         Trick[]
+
+  // Invariant: exactly one of userId / guestProfileId must be set. Prisma
+  // has no cross-column CHECK constraint support, so this is enforced in
+  // application code (see server/persistence.ts createPlayerProfile*).
+  @@map("player_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Rooms / Matches
+// ---------------------------------------------------------------------------
+
+enum RoomStatus {
+  LOBBY
+  BIDDING
+  TRUMP_SELECT
+  PLAYING
+  HAND_COMPLETE
+  MATCH_COMPLETE
+  ABANDONED
+}
+
+model GameRoom {
+  id            String     @id @default(cuid())
+  code          String     @unique // 6-character human-shareable room code
+  status        RoomStatus @default(LOBBY)
+  hostProfileId String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  players       RoomPlayer[]
+  matches       Match[]
+
+  @@map("game_rooms")
+}
+
+enum Team {
+  A
+  B
+}
+
+model RoomPlayer {
+  id              String   @id @default(cuid())
+  roomId          String
+  room            GameRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  playerProfileId String
+  playerProfile   PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+
+  seat            Int      // 1-4, fixed for the room's lifetime
+  team            Team     // derived from seat (1,3 = A; 2,4 = B) but stored for query convenience
+  connected       Boolean  @default(true)
+  socketId        String?
+  joinedAt        DateTime @default(now())
+
+  @@unique([roomId, seat])
+  @@unique([roomId, playerProfileId])
+  @@map("room_players")
+}
+
+model Match {
+  id             String    @id @default(cuid())
+  roomId         String
+  room           GameRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  teamAPenalty   Int       @default(0)
+  teamBPenalty   Int       @default(0)
+  winningTeam    Team?
+  dealerSeat     Int       @default(1)
+
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+
+  hands          Hand[]
+
+  @@map("matches")
+}
+
+model Hand {
+  id             String    @id @default(cuid())
+  matchId        String
+  match          Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  handNumber     Int
+  dealerSeat     Int
+  shuffleSeed    String // deterministic RNG seed, stored for audit/replay
+
+  bidderSeat     Int?
+  declaredBid    Int?
+  trumpSuit      String? // 'SPADES' | 'HEARTS' | 'DIAMONDS' | 'CLUBS'
+
+  teamAHands     Int       @default(0)
+  teamBHands     Int       @default(0)
+  bidSuccess     Boolean?
+  penaltyApplied Int?
+  penaltyTeam    Team?
+
+  // Full engine state snapshot after the most recently resolved trick, used
+  // to rehydrate an in-memory GameSession after a server restart.
+  stateSnapshot  Json?
+
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  bids           Bid[]
+  tricks         Trick[]
+
+  @@unique([matchId, handNumber])
+  @@map("hands")
+}
+
+model Bid {
+  id              String   @id @default(cuid())
+  handId          String
+  hand            Hand     @relation(fields: [handId], references: [id], onDelete: Cascade)
+  playerProfileId String
+  playerProfile   PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+
+  seat            Int
+  sequence        Int      // order within the bidding phase, starting at 1
+  value           Int?     // null = PASS
+  createdAt       DateTime @default(now())
+
+  @@map("bids")
+}
+
+model Trick {
+  id             String   @id @default(cuid())
+  handId         String
+  hand           Hand     @relation(fields: [handId], references: [id], onDelete: Cascade)
+
+  trickNumber    Int      // 1-13
+  leadSuit       String
+  winningSeat    Int
+  winningProfileId String?
+  winningProfile PlayerProfile? @relation(fields: [winningProfileId], references: [id], onDelete: SetNull)
+  cardsJson      Json     // [{ seat, card }] in play order
+
+  // Streak engine snapshot immediately after this trick resolved, kept for
+  // replay/debugging of the consecutive-win-streak mechanic.
+  streakPlayerSeat   Int?
+  streakCount        Int
+  unclaimedHandsAfter Int
+
+  createdAt      DateTime @default(now())
+
+  @@unique([handId, trickNumber])
+  @@map("tricks")
+}

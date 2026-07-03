@@ -1,65 +1,188 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { signOut } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { useIdentity } from "@/hooks/useIdentity";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useGameStore } from "@/store/useGameStore";
+import { SuitBackdrop } from "@/components/lobby/SuitBackdrop";
+import { ThemeToggle } from "@/components/ThemeToggle";
+
+export default function HomePage() {
+  const router = useRouter();
+  const { player, status } = useIdentity();
+  const continueAsGuest = useAuthStore((s) => s.continueAsGuest);
+  const clearAuth = useAuthStore((s) => s.clear);
+  const createRoom = useGameStore((s) => s.createRoom);
+  const joinRoom = useGameStore((s) => s.joinRoom);
+  const connected = useGameStore((s) => s.connected);
+
+  const [guestName, setGuestName] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [busy, setBusy] = useState<"guest" | "create" | "join" | null>(null);
+
+  async function handleGuestSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!guestName.trim()) return;
+    setBusy("guest");
+    const result = await continueAsGuest(guestName.trim());
+    setBusy(null);
+    if (!result) toast.error("Couldn't start a guest session. Try again.");
+  }
+
+  async function handleCreateRoom() {
+    if (!player) return;
+    setBusy("create");
+    const result = await createRoom(player.displayName);
+    setBusy(null);
+    if (result.ok && result.roomCode) {
+      router.push(`/room/${result.roomCode}`);
+    } else {
+      toast.error(result.error ?? "Couldn't create a room.");
+    }
+  }
+
+  async function handleJoinRoom(e: React.FormEvent) {
+    e.preventDefault();
+    if (!player || !roomCode.trim()) return;
+    setBusy("join");
+    const result = await joinRoom(roomCode.trim().toUpperCase(), player.displayName);
+    setBusy(null);
+    if (result.ok && result.roomCode) {
+      router.push(`/room/${result.roomCode}`);
+    } else {
+      toast.error(result.error ?? "Couldn't join that room.");
+    }
+  }
+
+  async function handleSignOut() {
+    clearAuth();
+    await signOut({ redirect: false });
+    window.location.reload();
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-primary/10 p-4">
+      <SuitBackdrop />
+      <ThemeToggle className="fixed right-3 top-3 z-50" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-md space-y-6"
+      >
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-amber-300 via-white to-sky-300 bg-clip-text text-transparent">
+            Double Sir
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          <p className="text-muted-foreground">A partnership trick-taking game with a twist.</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {status === "loading" && !player ? (
+          <Card className="border-white/10 bg-card/60 backdrop-blur-xl shadow-2xl">
+            <CardContent className="py-10 text-center text-muted-foreground">Loading...</CardContent>
+          </Card>
+        ) : player ? (
+          <Card className="border-white/10 bg-card/60 backdrop-blur-xl shadow-2xl">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Avatar>
+                  <AvatarFallback>{player.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <CardTitle className="text-lg">{player.displayName}</CardTitle>
+                  <CardDescription>
+                    {player.isGuest ? "Playing as guest" : "Signed in"} · {connected ? "Connected" : "Connecting..."}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button className="w-full" size="lg" onClick={handleCreateRoom} disabled={busy !== null || !connected}>
+                {busy === "create" ? "Creating..." : "Create Room"}
+              </Button>
+
+              <div className="relative py-1 text-center text-xs text-muted-foreground">
+                <span className="bg-card/60 px-2 relative z-10">or join with a code</span>
+                <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
+              </div>
+
+              <form onSubmit={handleJoinRoom} className="flex gap-2">
+                <Input
+                  placeholder="ROOM CODE"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  className="tracking-widest font-mono uppercase"
+                />
+                <Button type="submit" variant="secondary" disabled={busy !== null || !connected || !roomCode.trim()}>
+                  {busy === "join" ? "Joining..." : "Join"}
+                </Button>
+              </form>
+
+              <Separator />
+
+              <div className="flex items-center justify-between text-sm">
+                <Link href="/history" className="text-muted-foreground hover:text-foreground underline underline-offset-4">
+                  Match history
+                </Link>
+                <button onClick={handleSignOut} className="text-muted-foreground hover:text-foreground underline underline-offset-4">
+                  {player.isGuest ? "Not you?" : "Sign out"}
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-white/10 bg-card/60 backdrop-blur-xl shadow-2xl">
+            <CardHeader>
+              <CardTitle>Get started</CardTitle>
+              <CardDescription>Jump in instantly as a guest, or sign in to track stats.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form onSubmit={handleGuestSubmit} className="space-y-2">
+                <Label htmlFor="guestName">Display name</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="guestName"
+                    placeholder="Your name"
+                    maxLength={24}
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                  />
+                  <Button type="submit" disabled={busy !== null || !guestName.trim()}>
+                    {busy === "guest" ? "..." : "Play as Guest"}
+                  </Button>
+                </div>
+              </form>
+
+              <div className="relative py-1 text-center text-xs text-muted-foreground">
+                <span className="bg-card/60 px-2 relative z-10">or</span>
+                <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" nativeButton={false} render={<Link href="/login" />}>
+                  Sign in
+                </Button>
+                <Button variant="outline" nativeButton={false} render={<Link href="/register" />}>
+                  Create account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </motion.div>
+    </main>
   );
 }
