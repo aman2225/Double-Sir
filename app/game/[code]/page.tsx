@@ -32,6 +32,7 @@ import { CommsDock } from "@/components/comms/CommsDock";
 import { EmojiQuickButton } from "@/components/comms/EmojiPicker";
 import { MusicEngine } from "@/components/music/MusicEngine";
 import { MusicPlayer } from "@/components/music/MusicPlayer";
+import { WalletBadge } from "@/components/wallet/WalletBadge";
 import { MicState } from "@/components/game-table/PlayerSeat";
 // Reusing the engine's own pure `legalPlays` helper (not reimplementing the
 // rule) purely to highlight playable cards client-side. The server always
@@ -217,6 +218,7 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
           </div>
           <div className="flex items-center gap-1">
             {phase !== "BIDDING" && hand && <StreakIndicator streak={hand.streak} seatNames={seatNames} />}
+            <WalletBadge className="relative left-0 top-0 z-auto px-2 py-1 text-xs" />
             <Button variant="ghost" size="icon" aria-label="Toggle sound" onClick={toggleSound}>
               {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </Button>
@@ -313,6 +315,8 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
           teamBPenalty={gameState.teamBPenalty}
           handsPlayed={lastMatchComplete?.handsPlayed ?? gameState.handNumber}
           isHost={isHost}
+          prizePerWinner={lastMatchComplete?.prizePerWinner ?? 0}
+          won={teamForSeat(mySeat) === gameState.winningTeam}
           onPlayAgain={() => playAgain(roomCode)}
           onNewMatch={() => newMatch(roomCode)}
           onReturnHome={() => {

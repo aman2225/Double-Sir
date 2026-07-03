@@ -74,11 +74,67 @@ model PlayerProfile {
   roomPlayers    RoomPlayer[]
   bids           Bid[]
   tricks         Trick[]
+  wallet         Wallet?
 
   // Invariant: exactly one of userId / guestProfileId must be set. Prisma
   // has no cross-column CHECK constraint support, so this is enforced in
-  // application code (see server/persistence.ts createPlayerProfile*).
+  // application code (see lib/playerProfile.ts).
   @@map("player_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Virtual coin economy
+// ---------------------------------------------------------------------------
+// Every PlayerProfile gets exactly one Wallet, created atomically alongside
+// the profile itself (see lib/playerProfile.ts) so a wallet-less profile
+// can never exist. server/wallet.ts is the ONLY code path allowed to
+// mutate balance/totalEarned/totalSpent — always inside a Prisma
+// transaction alongside an append-only WalletTransaction row, which is the
+// full audit log (never updated or deleted after creation).
+
+model Wallet {
+  id              String   @id @default(cuid())
+  playerProfileId String   @unique
+  playerProfile   PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+
+  balance         Int      @default(10000)
+  totalEarned     Int      @default(10000)
+  totalSpent      Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  transactions    WalletTransaction[]
+
+  @@map("wallets")
+}
+
+enum WalletTransactionType {
+  SIGNUP_BONUS
+  MATCH_ENTRY
+  MATCH_VICTORY
+  REFUND
+  ADJUSTMENT
+}
+
+model WalletTransaction {
+  id              String   @id @default(cuid())
+  walletId        String
+  wallet          Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  playerProfileId String // denormalized for fast "my transactions" queries without a join
+
+  roomId          String?
+  matchId         String?
+
+  type            WalletTransactionType
+  amount          Int // signed: positive = credit, negative = debit
+  balanceAfter    Int
+  description     String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([playerProfileId, createdAt])
+  @@map("wallet_transactions")
 }
 
 // ---------------------------------------------------------------------------
@@ -98,8 +154,17 @@ enum RoomStatus {
 model GameRoom {
   id            String     @id @default(cuid())
   code          String     @unique // 6-character human-shareable room code
+  roomName      String?
   status        RoomStatus @default(LOBBY)
   hostProfileId String
+
+  // Coin economy: fixed tier amount (see lib/coinEconomy.ts), 0 = no entry
+  // fee. isPrivate is stored but not yet surfaced by any room-browser UI
+  // (joining is code-based only for now) — reserved for a future public
+  // room list.
+  entryFee      Int        @default(0)
+  isPrivate     Boolean    @default(true)
+
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
@@ -141,6 +206,14 @@ model Match {
   teamBPenalty   Int       @default(0)
   winningTeam    Team?
   dealerSeat     Int       @default(1)
+
+  // Snapshotted from the room's entryFee at match-creation time (never
+  // recomputed from a possibly-since-changed room row — standard ledger
+  // practice). prizeAwarded is the at-most-once guard for prize payout,
+  // enforced via a conditional update in server/wallet.ts.
+  entryFee       Int       @default(0)
+  prizePool      Int       @default(0)
+  prizeAwarded   Boolean   @default(false)
 
   startedAt      DateTime  @default(now())
   endedAt        DateTime?

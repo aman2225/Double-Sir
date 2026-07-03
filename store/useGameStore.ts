@@ -6,6 +6,7 @@ import { ConnectionQuality, PublicMatchState, RoomStateView } from "@/sockets/ev
 import { useChatStore } from "./useChatStore";
 import { useVoiceStore } from "./useVoiceStore";
 import { useMusicStore } from "./useMusicStore";
+import { useWalletStore } from "./useWalletStore";
 
 function bucketLatency(rttMs: number): ConnectionQuality {
   if (rttMs < 150) return "good";
@@ -41,6 +42,7 @@ export interface MatchCompleteEvent {
   teamAPenalty: number;
   teamBPenalty: number;
   handsPlayed: number;
+  prizePerWinner: number;
   key: number;
 }
 
@@ -69,7 +71,7 @@ interface GameStoreState {
   connect: (token: string) => void;
   disconnect: () => void;
 
-  createRoom: (displayName: string) => Promise<{ ok: boolean; roomCode?: string; error?: string }>;
+  createRoom: (displayName: string, entryFee: number, roomName?: string) => Promise<{ ok: boolean; roomCode?: string; error?: string }>;
   joinRoom: (roomCode: string, displayName: string) => Promise<{ ok: boolean; roomCode?: string; error?: string }>;
   leaveRoom: (roomCode: string) => void;
   startGame: (roomCode: string) => void;
@@ -169,6 +171,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     useChatStore.getState().bindToSocket(socket);
     useVoiceStore.getState().bindToSocket(socket);
     useMusicStore.getState().bindToSocket(socket);
+    useWalletStore.getState().bindToSocket(socket);
 
     set({ socket, connected: socket.connected });
   },
@@ -192,14 +195,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  createRoom: (displayName) =>
+  createRoom: (displayName, entryFee, roomName) =>
     new Promise((resolve) => {
       const socket = get().socket;
       if (!socket) {
         resolve({ ok: false, error: "Not connected." });
         return;
       }
-      socket.emit("room:create", { displayName }, (res) => {
+      socket.emit("room:create", { displayName, entryFee, roomName }, (res) => {
         if (res.ok && res.data?.roomCode) set({ currentRoomCode: res.data.roomCode, currentDisplayName: displayName });
         resolve({ ok: res.ok, roomCode: res.data?.roomCode, error: res.error });
       });

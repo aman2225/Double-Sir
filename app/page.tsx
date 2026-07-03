@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -15,8 +15,12 @@ import { toast } from "sonner";
 import { useIdentity } from "@/hooks/useIdentity";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
+import { useWalletStore } from "@/store/useWalletStore";
 import { SuitBackdrop } from "@/components/lobby/SuitBackdrop";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { WalletBadge } from "@/components/wallet/WalletBadge";
+import { EntryFeeTierPicker } from "@/components/wallet/EntryFeeTierPicker";
+import { ENTRY_FEE_TIERS } from "@/lib/coinEconomy";
 
 export default function HomePage() {
   const router = useRouter();
@@ -26,10 +30,18 @@ export default function HomePage() {
   const createRoom = useGameStore((s) => s.createRoom);
   const joinRoom = useGameStore((s) => s.joinRoom);
   const connected = useGameStore((s) => s.connected);
+  const walletBalance = useWalletStore((s) => s.balance);
+  const walletLoaded = useWalletStore((s) => s.loaded);
+  const fetchWallet = useWalletStore((s) => s.fetchWallet);
 
   const [guestName, setGuestName] = useState("");
   const [roomCode, setRoomCode] = useState("");
+  const [entryFee, setEntryFee] = useState<number>(ENTRY_FEE_TIERS[0].entryFee);
   const [busy, setBusy] = useState<"guest" | "create" | "join" | null>(null);
+
+  useEffect(() => {
+    if (player && !walletLoaded) fetchWallet();
+  }, [player, walletLoaded, fetchWallet]);
 
   async function handleGuestSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +55,7 @@ export default function HomePage() {
   async function handleCreateRoom() {
     if (!player) return;
     setBusy("create");
-    const result = await createRoom(player.displayName);
+    const result = await createRoom(player.displayName, entryFee);
     setBusy(null);
     if (result.ok && result.roomCode) {
       router.push(`/room/${result.roomCode}`);
@@ -75,6 +87,7 @@ export default function HomePage() {
     <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-primary/10 p-4">
       <SuitBackdrop />
       <ThemeToggle className="fixed right-3 top-3 z-50" />
+      {player && <WalletBadge />}
 
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -109,8 +122,18 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button className="w-full" size="lg" onClick={handleCreateRoom} disabled={busy !== null || !connected}>
-                {busy === "create" ? "Creating..." : "Create Room"}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Choose a room tier</p>
+                <EntryFeeTierPicker value={entryFee} onChange={setEntryFee} balance={walletBalance} />
+              </div>
+
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleCreateRoom}
+                disabled={busy !== null || !connected || walletBalance < entryFee}
+              >
+                {busy === "create" ? "Creating..." : `Create Room (${entryFee.toLocaleString()} coins)`}
               </Button>
 
               <div className="relative py-1 text-center text-xs text-muted-foreground">

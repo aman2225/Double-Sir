@@ -59,10 +59,27 @@ export class GameSession {
   music: MusicState = initialMusicState();
   musicTimer?: NodeJS.Timeout;
 
-  constructor(roomCode: string, roomId: string, hostPlayerProfileId: string) {
+  // --- Coin economy ------------------------------------------------------
+  /** Fixed tier amount in coins (see lib/coinEconomy.ts); 0 = no entry fee. */
+  entryFee: number = 0;
+  roomName?: string;
+  isPrivate: boolean = true;
+  /**
+   * Re-entrancy lock for game:start — set synchronously before the first
+   * await in the handler, so two rapid game:start emits from the same
+   * client can't both pass the "!session.match" check before either
+   * finishes awaiting the entry-fee deduction (which would double-charge
+   * every player). Cleared in a finally block.
+   */
+  startingMatch: boolean = false;
+
+  constructor(roomCode: string, roomId: string, hostPlayerProfileId: string, entryFee = 0, roomName?: string, isPrivate = true) {
     this.roomCode = roomCode;
     this.roomId = roomId;
     this.hostPlayerProfileId = hostPlayerProfileId;
+    this.entryFee = entryFee;
+    this.roomName = roomName;
+    this.isPrivate = isPrivate;
   }
 
   get isFull(): boolean {

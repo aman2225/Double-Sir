@@ -16,10 +16,16 @@ interface GameOverScreenProps {
   teamBPenalty: number;
   handsPlayed: number;
   isHost: boolean;
+  /** Coins the viewer's own team received per winning player (0 if the room had no entry fee, or this seat lost). */
+  prizePerWinner: number;
+  /** Whether the local viewer was on the winning team. */
+  won: boolean;
   onPlayAgain: () => void;
   onNewMatch: () => void;
   onReturnHome: () => void;
 }
+
+const FLOATING_COINS = Array.from({ length: 10 }, (_, i) => i);
 
 export function GameOverScreen({
   winningTeam,
@@ -27,12 +33,15 @@ export function GameOverScreen({
   teamBPenalty,
   handsPlayed,
   isHost,
+  prizePerWinner,
+  won,
   onPlayAgain,
   onNewMatch,
   onReturnHome,
 }: GameOverScreenProps) {
   const losingTeam: TeamId = winningTeam === "A" ? "B" : "A";
   const winTheme = TEAM_THEME[winningTeam];
+  const showPrize = prizePerWinner > 0 && won;
 
   useEffect(() => {
     const colors = winningTeam === "A" ? ["#fbbf24", "#f59e0b", "#ffffff"] : ["#38bdf8", "#0ea5e9", "#ffffff"];
@@ -48,6 +57,22 @@ export function GameOverScreen({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      {showPrize && (
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          {FLOATING_COINS.map((i) => (
+            <motion.span
+              key={i}
+              className="absolute bottom-0 text-2xl"
+              style={{ left: `${5 + ((i * 9) % 90)}%` }}
+              initial={{ y: 0, opacity: 0 }}
+              animate={{ y: "-100vh", opacity: [0, 1, 1, 0] }}
+              transition={{ duration: 2.2 + (i % 4) * 0.3, delay: i * 0.1, ease: "easeOut" }}
+            >
+              🪙
+            </motion.span>
+          ))}
+        </div>
+      )}
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}>
         <Card className="w-full max-w-md border-white/10 bg-card/80 backdrop-blur-2xl shadow-2xl text-center">
           <CardHeader className="items-center pt-8">
@@ -56,6 +81,21 @@ export function GameOverScreen({
               <span className={winTheme.text}>{winTheme.label}</span> Wins!
             </CardTitle>
             <p className="text-sm text-muted-foreground">{TEAM_THEME[losingTeam].label} reached the penalty limit.</p>
+            {prizePerWinner > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 18 }}
+                className={cn(
+                  "mt-2 rounded-full border px-4 py-1.5 text-lg font-bold",
+                  won
+                    ? "border-[var(--gold,#facc15)]/50 bg-[var(--gold,#facc15)]/10 text-[var(--gold,#facc15)]"
+                    : "border-white/10 bg-white/5 text-muted-foreground"
+                )}
+              >
+                🪙 {won ? `+${prizePerWinner.toLocaleString()}` : "0"} Coins
+              </motion.div>
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center justify-center gap-8">

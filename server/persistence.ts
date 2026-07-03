@@ -10,12 +10,12 @@ import { generateRoomCode } from "@/lib/roomCode";
 import { Card, HandState, Seat, Suit, TeamId, teamForSeat } from "@/engine/types";
 import { Prisma, Team } from "@prisma/client";
 
-export async function createRoomInDb(hostProfileId: string) {
+export async function createRoomInDb(hostProfileId: string, entryFee = 0, roomName?: string, isPrivate = true) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateRoomCode();
     try {
       const room = await prisma.gameRoom.create({
-        data: { code, hostProfileId, status: "LOBBY" },
+        data: { code, hostProfileId, status: "LOBBY", entryFee, roomName, isPrivate },
       });
       await prisma.roomPlayer.create({
         data: { roomId: room.id, playerProfileId: hostProfileId, seat: 1, team: "A" },
@@ -56,8 +56,8 @@ export async function setPlayerConnection(roomId: string, seat: number, connecte
   });
 }
 
-export async function createMatchInDb(roomId: string) {
-  return prisma.match.create({ data: { roomId } });
+export async function createMatchInDb(roomId: string, entryFee = 0, prizePool = 0) {
+  return prisma.match.create({ data: { roomId, entryFee, prizePool } });
 }
 
 export async function createHandInDb(matchId: string, handNumber: number, dealerSeat: number, shuffleSeed: string) {

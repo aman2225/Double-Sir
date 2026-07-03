@@ -6,6 +6,7 @@
 import { InvalidActionError } from "@/engine/reducer";
 import { RoomStateView } from "@/sockets/events";
 import { redactMatchForSeat } from "@/sockets/redact";
+import { prizePool } from "@/lib/coinEconomy";
 import { GameSession, SeatOccupant } from "./session";
 import { getSession } from "./rooms";
 import { AppServer, AppSocket } from "./types";
@@ -23,6 +24,9 @@ export function buildRoomStateView(session: GameSession): RoomStateView {
     roomCode: session.roomCode,
     status: session.status,
     hostPlayerProfileId: session.hostPlayerProfileId,
+    roomName: session.roomName,
+    entryFee: session.entryFee,
+    prizePool: prizePool(session.entryFee),
     players: [...session.seats.values()]
       .sort((a, b) => a.seat - b.seat)
       .map((o) => ({

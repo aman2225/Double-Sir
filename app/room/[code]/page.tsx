@@ -17,6 +17,7 @@ import { useCommsNotifications } from "@/hooks/useCommsNotifications";
 import { useMusicNotifications } from "@/hooks/useMusicNotifications";
 import { MusicEngine } from "@/components/music/MusicEngine";
 import { MusicPlayer } from "@/components/music/MusicPlayer";
+import { WalletBadge } from "@/components/wallet/WalletBadge";
 import { SEATS, Seat } from "@/engine/types";
 import { FELT_SURFACE, GOLD_TEXT } from "@/lib/tableTheme";
 
@@ -75,6 +76,7 @@ export default function RoomLobbyPage({ params }: { params: Promise<{ code: stri
     <main className={`table-theme relative flex flex-1 items-center justify-center overflow-hidden p-4 ${FELT_SURFACE}`}>
       <SuitBackdrop />
       <ThemeToggle className="fixed right-3 top-3 z-50" />
+      {player && <WalletBadge />}
 
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -85,7 +87,7 @@ export default function RoomLobbyPage({ params }: { params: Promise<{ code: stri
         <Card className="border-[var(--gold)]/20 bg-black/40 backdrop-blur-xl shadow-2xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className={`text-2xl ${GOLD_TEXT}`}>Game Lobby</CardTitle>
+              <CardTitle className={`text-2xl ${GOLD_TEXT}`}>{roomState?.roomName || "Game Lobby"}</CardTitle>
               <p className="text-sm text-muted-foreground">Share this code so friends can join.</p>
             </div>
             <Button variant="outline" size="sm" onClick={handleCopy} className="font-mono text-lg tracking-widest">
@@ -94,6 +96,19 @@ export default function RoomLobbyPage({ params }: { params: Promise<{ code: stri
             </Button>
           </CardHeader>
           <CardContent className="space-y-6">
+            {roomState && roomState.entryFee > 0 && (
+              <div className="flex items-center justify-center gap-4 rounded-lg border border-[var(--gold)]/20 bg-[var(--gold)]/5 px-3 py-2 text-sm">
+                <span>
+                  🪙 Entry: <strong>{roomState.entryFee.toLocaleString()}</strong>
+                </span>
+                <span>
+                  🏆 Prize Pool: <strong>{roomState.prizePool.toLocaleString()}</strong>
+                </span>
+                <span>
+                  Each Winner: <strong>+{(roomState.prizePool / 2).toLocaleString()}</strong>
+                </span>
+              </div>
+            )}
             {joinError ? (
               <p className="text-center text-sm text-destructive">{joinError}</p>
             ) : !roomState ? (

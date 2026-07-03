@@ -7,12 +7,14 @@ import { randomBytes } from "node:crypto";
 import { applyAction, InvalidActionError } from "@/engine/reducer";
 import { createMatch, prepareNextHand } from "@/engine/match";
 import { Seat, Suit, Card } from "@/engine/types";
+import { isValidEntryFee, prizePerWinner, prizePool } from "@/lib/coinEconomy";
 import { GameSession } from "./session";
 import { createSession, getSession, allSessions } from "./rooms";
 import { broadcastGameState, broadcastRoomState, requireSeated, withErrorHandling } from "./roomHelpers";
 import { sendChatHistory } from "./chatHandlers";
 import { sendMusicState } from "./musicHandlers";
 import { syncTurnTimer } from "./turnTimer";
+import { deductEntryFees, refundEntryFees, creditMatchPrize, getWalletSnapshot } from "./wallet";
 import { AppServer, AppSocket } from "./types";
 import {
   addRoomPlayer,
@@ -48,11 +50,43 @@ async function startHandFlow(session: GameSession) {
   await setRoomStatus(session.roomId, "BIDDING");
 }
 
+/**
+ * Creates the Match row, collects entry fees (if any), then starts the
+ * first hand. The `startingMatch` re-entrancy lock is set synchronously
+ * before any await so two rapid calls (double-click, replay) can't both
+ * pass and double-charge every player — see server/session.ts.
+ */
 async function startNewMatchAndHand(session: GameSession) {
-  const matchRow = await createMatchInDb(session.roomId);
-  session.matchDbId = matchRow.id;
-  session.match = createMatch(session.roomCode);
-  await startHandFlow(session);
+  if (session.startingMatch) {
+    throw new InvalidActionError("A match is already starting for this room.");
+  }
+  session.startingMatch = true;
+  try {
+    const playerProfileIds = [...session.seats.values()].map((o) => o.playerProfileId);
+    const matchRow = await createMatchInDb(session.roomId, session.entryFee, prizePool(session.entryFee));
+    session.matchDbId = matchRow.id;
+
+    if (session.entryFee > 0) {
+      // All-or-nothing: throws (and charges NOBODY) if any player can't
+      // afford it. The Match row above is left as a harmless "never
+      // started" artifact in that case (no hands, endedAt stays null).
+      await deductEntryFees(playerProfileIds, session.entryFee, session.roomId, matchRow.id);
+    }
+
+    try {
+      session.match = createMatch(session.roomCode);
+      await startHandFlow(session);
+    } catch (err) {
+      if (session.entryFee > 0) {
+        await refundEntryFees(playerProfileIds, session.entryFee, session.roomId, matchRow.id).catch((refundErr) =>
+          console.error("Failed to refund entry fees after match-start failure:", refundErr)
+        );
+      }
+      throw err;
+    }
+  } finally {
+    session.startingMatch = false;
+  }
 }
 
 /**
@@ -121,6 +155,25 @@ export async function applyCardPlay(io: AppServer, session: GameSession, seat: S
       for (const occ of session.seats.values()) {
         await bumpPlayerStatsForMatch(occ.playerProfileId, occ.team === event.winningTeam);
       }
+
+      let prizePerWinnerAmount = 0;
+      if (session.entryFee > 0) {
+        prizePerWinnerAmount = prizePerWinner(session.entryFee);
+        const winningOccupants = [...session.seats.values()].filter((occ) => occ.team === event.winningTeam);
+        const newBalances = await creditMatchPrize(
+          winningOccupants.map((occ) => occ.playerProfileId),
+          session.entryFee,
+          session.roomId,
+          session.matchDbId!
+        );
+        for (const occ of winningOccupants) {
+          const snapshot = newBalances.get(occ.playerProfileId);
+          if (snapshot && occ.socketId) {
+            io.to(occ.socketId).emit("wallet:balance", snapshot);
+          }
+        }
+      }
+
       session.status = "MATCH_COMPLETE";
       await setRoomStatus(session.roomId, "MATCH_COMPLETE");
       io.to(roomCode).emit("match:complete", {
@@ -128,6 +181,7 @@ export async function applyCardPlay(io: AppServer, session: GameSession, seat: S
         teamAPenalty: event.teamAPenalty,
         teamBPenalty: event.teamBPenalty,
         handsPlayed: session.match!.completedHands.length,
+        prizePerWinner: prizePerWinnerAmount,
       });
     }
   }
@@ -139,7 +193,7 @@ export async function applyCardPlay(io: AppServer, session: GameSession, seat: S
 export function registerGameHandlers(io: AppServer, socket: AppSocket) {
   const player = socket.data.player;
 
-  socket.on("room:create", ({ displayName }, ack) => {
+  socket.on("room:create", ({ displayName, entryFee, roomName }, ack) => {
     // A client could theoretically omit the ack callback despite the typed
     // contract requiring one (TypeScript only enforces this at compile
     // time) — fall back to a no-op so a malformed call can't throw mid-handler
@@ -147,8 +201,12 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
     const safeAck = typeof ack === "function" ? ack : () => {};
     (async () => {
       try {
-        const room = await createRoomInDb(player.playerProfileId);
-        const session = new GameSession(room.code, room.id, player.playerProfileId);
+        if (!isValidEntryFee(entryFee)) {
+          safeAck({ ok: false, error: "Invalid entry fee — choose one of the listed room tiers." });
+          return;
+        }
+        const room = await createRoomInDb(player.playerProfileId, entryFee, roomName, true);
+        const session = new GameSession(room.code, room.id, player.playerProfileId, entryFee, roomName ?? undefined, true);
         session.addOccupant(1, player.playerProfileId, displayName || player.displayName, player.avatarUrl, socket.id);
         createSession(session);
         socket.join(room.code);
@@ -194,6 +252,18 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
         if (session.status !== "LOBBY") {
           safeAck({ ok: false, error: "Match already in progress." });
           return;
+        }
+
+        if (session.entryFee > 0) {
+          const wallet = await getWalletSnapshot(player.playerProfileId);
+          const balance = wallet?.balance ?? 0;
+          if (balance < session.entryFee) {
+            safeAck({
+              ok: false,
+              error: `Insufficient coins: this room requires ${session.entryFee}, you have ${balance}.`,
+            });
+            return;
+          }
         }
 
         const seat = session.nextOpenSeat()!;

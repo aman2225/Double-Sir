@@ -9,6 +9,7 @@ import { VoiceClientEvents, VoiceServerEvents } from "./voiceEvents";
 import { EmojiClientEvents, EmojiServerEvents } from "./emojiEvents";
 import { PresenceServerEvents } from "./presenceEvents";
 import { MusicClientEvents, MusicServerEvents } from "./musicEvents";
+import { WalletServerEvents } from "./walletEvents";
 
 export type RoomStatus = "LOBBY" | "BIDDING" | "TRUMP_SELECT" | "PLAYING" | "HAND_COMPLETE" | "MATCH_COMPLETE";
 
@@ -30,6 +31,9 @@ export interface RoomStateView {
   status: RoomStatus;
   players: RoomPlayerView[];
   hostPlayerProfileId: string;
+  roomName?: string;
+  entryFee: number;
+  prizePool: number;
 }
 
 /**
@@ -82,7 +86,10 @@ export interface PublicMatchState {
 // individual events below don't need to carry it.
 
 export interface GameClientEvents {
-  "room:create": (payload: { displayName: string }, ack: (res: AckResult<{ roomCode: string }>) => void) => void;
+  "room:create": (
+    payload: { displayName: string; entryFee: number; roomName?: string },
+    ack: (res: AckResult<{ roomCode: string }>) => void
+  ) => void;
   "room:join": (payload: { roomCode: string; displayName: string }, ack: (res: AckResult<{ roomCode: string }>) => void) => void;
   "room:leave": (payload: { roomCode: string }) => void;
   "game:start": (payload: { roomCode: string }) => void;
@@ -132,6 +139,8 @@ export interface GameServerEvents {
     teamAPenalty: number;
     teamBPenalty: number;
     handsPlayed: number;
+    /** Coins each winning-team player received (0 if the room had no entry fee) — public match fact, not a private balance. */
+    prizePerWinner: number;
   }) => void;
   "player:disconnected": (payload: { seat: Seat }) => void;
   "player:reconnected": (payload: { seat: Seat }) => void;
@@ -154,4 +163,5 @@ export type ServerToClientEvents = GameServerEvents &
   VoiceServerEvents &
   EmojiServerEvents &
   PresenceServerEvents &
-  MusicServerEvents;
+  MusicServerEvents &
+  WalletServerEvents;
