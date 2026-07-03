@@ -6,6 +6,12 @@ import { verifyPassword } from "./password";
 import { ensurePlayerProfileForUser } from "./playerProfile";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Required when running behind a reverse proxy (Railway, Render, Fly.io,
+  // any self-hosted setup) — without this, Auth.js refuses to trust the
+  // incoming Host header and throws a generic "Configuration" error on
+  // every request, even before reaching a provider. Safe here since the
+  // proxy in front of this app (Railway) is our own trusted infrastructure.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
