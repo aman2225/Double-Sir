@@ -14,7 +14,7 @@ export function PenaltyBar({ team, penalty }: { team: TeamId; penalty: number })
     <div className="flex w-full flex-col gap-1">
       <div className="flex items-center justify-between text-xs">
         <span className={cn("font-semibold", theme.text)}>{theme.label}</span>
-        <span className={cn("font-mono", danger && "text-destructive font-bold")}>
+        <span className={cn("font-mono text-white/90", danger && "text-destructive font-bold")}>
           {penalty} / {MATCH_LOSS_THRESHOLD}
         </span>
       </div>

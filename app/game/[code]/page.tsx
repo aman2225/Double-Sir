@@ -206,10 +206,10 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
       <div className="z-10 flex flex-col gap-2 border-b border-white/5 bg-black/20 px-3 py-2 backdrop-blur-xl sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-mono">
+            <Badge variant="outline" className="font-mono text-white border-white/20 bg-white/10">
               {roomCode}
             </Badge>
-            <span className="text-xs text-muted-foreground">Hand #{gameState.handNumber}</span>
+            <span className="text-xs text-white/80">Hand #{gameState.handNumber}</span>
             {hand?.trumpSuit && (
               <span className={`flex items-center gap-1 text-sm font-semibold ${SUIT_META[hand.trumpSuit].color}`}>
                 {SUIT_META[hand.trumpSuit].symbol} Trump
@@ -219,11 +219,11 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
           <div className="flex items-center gap-1">
             {phase !== "BIDDING" && hand && <StreakIndicator streak={hand.streak} seatNames={seatNames} />}
             <WalletBadge className="relative left-0 top-0 z-auto px-2 py-1 text-xs" />
-            <Button variant="ghost" size="icon" aria-label="Toggle sound" onClick={toggleSound}>
+            <Button variant="ghost" size="icon" aria-label="Toggle sound" onClick={toggleSound} className="text-white hover:bg-white/10 hover:text-white">
               {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </Button>
             <ThemeToggle />
-            <Button variant="ghost" size="icon" aria-label="Exit game" onClick={() => setExitDialogOpen(true)}>
+            <Button variant="ghost" size="icon" aria-label="Exit game" onClick={() => setExitDialogOpen(true)} className="text-white hover:bg-white/10 hover:text-white">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>

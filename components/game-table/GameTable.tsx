@@ -102,18 +102,22 @@ export function GameTable({
   return (
     <div
       className={cn(
-        "relative m-2 flex w-full flex-1 items-center justify-center overflow-hidden rounded-[2.5rem] py-8 sm:m-4",
+        "relative m-2 flex w-full flex-1 items-center justify-center overflow-hidden rounded-[2.5rem] py-8 sm:m-4 min-h-[380px] sm:min-h-[440px]",
         FELT_SURFACE
       )}
     >
-      <div className="absolute left-1/2 top-2 -translate-x-1/2">{renderSeat(topSeat)}</div>
-      <div className="absolute left-2 top-1/2 -translate-y-1/2 sm:left-6">{renderSeat(leftSeat)}</div>
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 sm:right-6">{renderSeat(rightSeat)}</div>
+      {trumpSuit && phase !== "BIDDING" && <TrumpDisplay suit={trumpSuit} />}
+      <div className="absolute left-1/2 top-1 sm:top-2 -translate-x-1/2">{renderSeat(topSeat)}</div>
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 sm:left-6">{renderSeat(leftSeat)}</div>
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 sm:right-6">{renderSeat(rightSeat)}</div>
 
-      <div className="relative">
-        {trumpSuit && phase !== "BIDDING" && <TrumpDisplay suit={trumpSuit} />}
-        <TrickArea currentTrick={currentTrick} mySeat={mySeat} trumpSuit={trumpSuit} winningSeat={winningSeat} />
-      </div>
+      <TrickArea
+        currentTrick={currentTrick}
+        mySeat={mySeat}
+        trumpSuit={trumpSuit}
+        winningSeat={winningSeat}
+        seatInfo={seatInfo}
+      />
       {reactions && <FloatingEmojiLayer reactions={reactions} mySeat={mySeat} />}
       {handNumber !== undefined && <DealSequence trigger={handNumber} mySeat={mySeat} />}
     </div>

@@ -3,8 +3,14 @@ import { persist } from "zustand/middleware";
 import { AppSocket } from "@/sockets/client";
 import { Seat } from "@/engine/types";
 
-const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
-const SPEAKING_THRESHOLD = 12; // 0-128 scale off getByteTimeDomainData deviation
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+];
+const SPEAKING_THRESHOLD = 4; // 0-128 scale off getByteTimeDomainData deviation
 const SPEAKING_POLL_MS = 150;
 const SPEAKING_HANGOVER_MS = 500; // avoid flicker: keep "speaking" a beat after audio dips below threshold
 
@@ -62,9 +68,11 @@ let speakingSince = 0;
 let lastSpeakingReport = false;
 
 function syncTrackEnabled(state: Pick<VoiceState, "localStream" | "micEnabled" | "pushToTalkEnabled" | "pushToTalkActive">) {
-  const track = state.localStream?.getAudioTracks()[0];
-  if (!track) return;
-  track.enabled = state.pushToTalkEnabled ? state.pushToTalkActive : state.micEnabled;
+  if (!state.localStream) return;
+  const enabled = state.pushToTalkEnabled ? state.pushToTalkActive : state.micEnabled;
+  state.localStream.getAudioTracks().forEach((track) => {
+    track.enabled = enabled;
+  });
 }
 
 function attachRemoteAudio(peer: RemotePeer, volume: number, outputDeviceId: string | null, muted: boolean) {
@@ -78,18 +86,30 @@ function attachRemoteAudio(peer: RemotePeer, volume: number, outputDeviceId: str
     peer.audioEl = el;
   }
   peer.audioEl.srcObject = peer.stream;
-  peer.audioEl.volume = volume;
+  peer.audioEl.volume = Math.max(0, Math.min(1, volume));
   peer.audioEl.muted = muted;
   if (outputDeviceId && "setSinkId" in peer.audioEl) {
     (peer.audioEl as HTMLAudioElement & { setSinkId: (id: string) => Promise<void> })
       .setSinkId(outputDeviceId)
       .catch(() => {});
   }
-  peer.audioEl.play().catch(() => {
-    // Autoplay can still be blocked on some mobile browsers even after an
-    // earlier gesture unlocked getUserMedia — a visible "tap to enable audio"
-    // affordance is handled by the VoiceControls UI watching connectionState.
-  });
+  const playPromise = peer.audioEl.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(() => {
+      // Autoplay can be blocked until user interacts with the page. Register a one-time gesture listener to resume audio playback.
+      const unlock = () => {
+        if (peer.audioEl) {
+          peer.audioEl.play().catch(() => {});
+        }
+        window.removeEventListener("click", unlock);
+        window.removeEventListener("touchstart", unlock);
+        window.removeEventListener("keydown", unlock);
+      };
+      window.addEventListener("click", unlock, { once: true });
+      window.addEventListener("touchstart", unlock, { once: true });
+      window.addEventListener("keydown", unlock, { once: true });
+    });
+  }
 }
 
 export const useVoiceStore = create<VoiceState>()(
@@ -332,6 +352,10 @@ function getOrCreatePeer(seat: Seat, playerProfileId: string): RemotePeer {
 
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   const peer: RemotePeer = { seat, playerProfileId, pc, stream: null, audioEl: null, pendingCandidates: [], remoteDescriptionSet: false };
+
+  try {
+    pc.addTransceiver("audio", { direction: "sendrecv" });
+  } catch {}
 
   state.localStream?.getTracks().forEach((track) => pc.addTrack(track, state.localStream!));
 

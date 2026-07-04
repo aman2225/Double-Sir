@@ -34,10 +34,10 @@ export function LiveBidTrack({ entries, currentSeat, seatNames, biddingComplete 
                 isActive
                   ? "bg-[var(--gold)] text-black shadow-[0_0_10px_var(--gold-soft)]"
                   : entry?.value !== undefined
-                  ? "bg-white/15"
+                  ? "bg-white/15 text-white"
                   : entry
-                  ? "bg-white/5 text-muted-foreground line-through"
-                  : "bg-white/5 text-muted-foreground"
+                  ? "bg-white/5 text-white/60 line-through"
+                  : "bg-white/5 text-white/60"
               )}
             >
               {entry ? (entry.value !== undefined ? entry.value : "Pass") : "-"}

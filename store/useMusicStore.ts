@@ -63,10 +63,22 @@ export const useMusicStore = create<MusicStoreState>()(
         set({ socket });
       },
 
-      play: (roomCode, trackId) => get().socket?.emit("music:play", { roomCode, trackId }),
-      pause: (roomCode) => get().socket?.emit("music:pause", { roomCode }),
-      resume: (roomCode) => get().socket?.emit("music:resume", { roomCode }),
-      stop: (roomCode) => get().socket?.emit("music:stop", { roomCode }),
+      play: (roomCode, trackId) => {
+        set({ status: "playing", playbackStartEpoch: Date.now() });
+        get().socket?.emit("music:play", { roomCode, trackId });
+      },
+      pause: (roomCode) => {
+        set({ status: "paused", playbackStartEpoch: undefined });
+        get().socket?.emit("music:pause", { roomCode });
+      },
+      resume: (roomCode) => {
+        set({ status: "playing", playbackStartEpoch: Date.now() });
+        get().socket?.emit("music:resume", { roomCode });
+      },
+      stop: (roomCode) => {
+        set({ status: "stopped", positionMs: 0, playbackStartEpoch: undefined });
+        get().socket?.emit("music:stop", { roomCode });
+      },
       next: (roomCode) => get().socket?.emit("music:next", { roomCode }),
       previous: (roomCode) => get().socket?.emit("music:previous", { roomCode }),
       selectTrack: (roomCode, trackId) => get().socket?.emit("music:selectTrack", { roomCode, trackId }),

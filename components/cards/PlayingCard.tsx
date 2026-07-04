@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface PlayingCardProps {
   card: CardData;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "responsive";
   selected?: boolean;
   disabled?: boolean;
   onClick?: () => void;
@@ -26,6 +26,7 @@ const SIZE_CLASSES: Record<NonNullable<PlayingCardProps["size"]>, string> = {
   sm: "w-10 h-14 text-[10px] rounded-md",
   md: "w-16 h-22 text-sm rounded-lg",
   lg: "w-20 h-28 text-base rounded-xl",
+  responsive: "w-12 h-18 text-xs rounded-md sm:w-16 sm:h-22 sm:text-sm sm:rounded-lg",
 };
 
 export function PlayingCard({

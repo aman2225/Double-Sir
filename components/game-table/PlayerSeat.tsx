@@ -81,7 +81,7 @@ export function PlayerSeat({
   }, [isMe, timerActive, turnDeadline]);
 
   return (
-    <div className={cn("flex flex-col items-center gap-1.5", isVertical && "flex-row gap-2")}>
+    <div className="flex flex-col items-center gap-1.5">
       <div className="relative">
         {timerActive && isMe && (
           <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--gold,#facc15)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black shadow">
@@ -104,8 +104,8 @@ export function PlayerSeat({
             isSpeaking ? "ring-emerald-400" : timerActive ? "ring-[var(--gold,#facc15)]" : isCurrentTurn ? theme.ring : "ring-transparent"
           )}
         >
-          <Avatar className="h-11 w-11 sm:h-12 sm:w-12">
-            <AvatarFallback className={cn(theme.bg, "text-white text-sm")}>
+          <Avatar className="h-9 w-9 sm:h-12 sm:w-12">
+            <AvatarFallback className={cn(theme.bg, "text-white text-xs sm:text-sm")}>
               {displayName.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -149,7 +149,7 @@ export function PlayerSeat({
           <span
             className={cn(
               "flex items-center gap-1 text-[10px]",
-              isSpeaking ? "text-emerald-400" : "text-muted-foreground"
+              isSpeaking ? "text-emerald-400" : "text-white/70"
             )}
           >
             {isSpeaking ? (
@@ -179,14 +179,6 @@ export function PlayerSeat({
           </span>
         )}
       </div>
-
-      {!isVertical && (
-        <div className="flex -space-x-6">
-          {Array.from({ length: Math.min(cardCount, 6) }).map((_, i) => (
-            <CardBack key={i} size="sm" />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

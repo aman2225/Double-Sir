@@ -34,14 +34,7 @@ export function HandFan({ cards, legalCards, isMyTurn, onPlay, trumpSuit }: Hand
 
   function handleCardClick(card: CardData) {
     if (!isMyTurn || !legalIds.has(cardId(card))) return;
-    // Tap-to-select-then-tap-again-to-confirm — the fallback path for
-    // precise/no-pointer input; drag-to-play (below) is the faster path.
-    if (selectedCard && cardId(selectedCard) === cardId(card)) {
-      playCard(card);
-      return;
-    }
-    if (soundEnabled) sounds.cardFlip();
-    selectCard(card);
+    playCard(card);
   }
 
   function handleDragEnd(card: CardData, offsetY: number) {
@@ -81,11 +74,7 @@ export function HandFan({ cards, legalCards, isMyTurn, onPlay, trumpSuit }: Hand
         </div>
       </div>
       <p className="h-4 text-xs text-muted-foreground">
-        {isMyTurn
-          ? selectedCard
-            ? "Tap again to play"
-            : "Your turn — drag a card up, or tap it"
-          : "Waiting for your turn..."}
+        {isMyTurn ? "Your turn — tap a card to play" : "Waiting for your turn..."}
       </p>
     </div>
   );
