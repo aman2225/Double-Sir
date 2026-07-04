@@ -34,6 +34,8 @@ export interface HandCompleteEvent {
   teamBHands: number;
   teamAPenalty: number;
   teamBPenalty: number;
+  earlyBreak?: boolean;
+  earlyBreakReason?: string;
   key: number;
 }
 

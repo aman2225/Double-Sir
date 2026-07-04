@@ -146,6 +146,8 @@ export interface HandState {
   bidSuccess?: boolean;
   penaltyApplied?: number;
   penaltyTeam?: TeamId;
+  earlyBreak?: boolean;
+  earlyBreakReason?: string;
 }
 
 export interface MatchState {
@@ -198,5 +200,7 @@ export type EngineEvent =
       penaltyTeam: TeamId;
       teamAHands: number;
       teamBHands: number;
+      earlyBreak?: boolean;
+      earlyBreakReason?: string;
     }
   | { type: "MATCH_COMPLETE"; winningTeam: TeamId; teamAPenalty: number; teamBPenalty: number };

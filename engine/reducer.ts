@@ -173,15 +173,31 @@ function handlePlayCard(match: MatchState, seat: Seat, card: Card): ActionResult
 
   let updatedMatch: MatchState = { ...match, currentHand: updatedHand };
 
-  if (trickNumber === TRICKS_PER_HAND) {
-    assertHandInvariant(streakResult.streak);
+  const bidderSeat = hand.bidding.winningSeat!;
+  const declaredBid = hand.bidding.highestBid!.value;
+  const biddingTeam = teamForSeat(bidderSeat);
+  const biddingTeamHands = biddingTeam === "A" ? streakResult.streak.teamAHands : streakResult.streak.teamBHands;
+  const opponentTeamHands = biddingTeam === "A" ? streakResult.streak.teamBHands : streakResult.streak.teamAHands;
 
-    const bidderSeat = hand.bidding.winningSeat!;
-    const declaredBid = hand.bidding.highestBid!.value;
-    const biddingTeam = teamForSeat(bidderSeat);
-    const biddingTeamHands = biddingTeam === "A" ? streakResult.streak.teamAHands : streakResult.streak.teamBHands;
+  const earlySuccess = biddingTeamHands >= declaredBid;
+  const earlyFailure = TRICKS_PER_HAND - opponentTeamHands < declaredBid;
+  const isEarlyBreak = trickNumber < TRICKS_PER_HAND && (earlySuccess || earlyFailure);
+
+  if (trickNumber === TRICKS_PER_HAND || isEarlyBreak) {
+    if (trickNumber === TRICKS_PER_HAND) {
+      assertHandInvariant(streakResult.streak);
+    }
 
     const penalty = computeHandPenalty(biddingTeam, declaredBid, biddingTeamHands);
+
+    let earlyBreakReason: string | undefined;
+    if (isEarlyBreak) {
+      if (earlySuccess) {
+        earlyBreakReason = `Team ${biddingTeam} successfully completed the bid of ${declaredBid} hands.`;
+      } else {
+        earlyBreakReason = `Team ${biddingTeam} can no longer mathematically achieve the declared bid of ${declaredBid} hands.`;
+      }
+    }
 
     updatedHand = {
       ...updatedHand,
@@ -189,6 +205,8 @@ function handlePlayCard(match: MatchState, seat: Seat, card: Card): ActionResult
       bidSuccess: penalty.bidSuccess,
       penaltyApplied: penalty.penaltyApplied,
       penaltyTeam: penalty.penaltyTeam,
+      earlyBreak: isEarlyBreak ? true : undefined,
+      earlyBreakReason,
     };
 
     const teamAPenalty = match.teamAPenalty + (penalty.penaltyTeam === "A" ? penalty.penaltyApplied : 0);
@@ -212,6 +230,8 @@ function handlePlayCard(match: MatchState, seat: Seat, card: Card): ActionResult
       penaltyTeam: penalty.penaltyTeam,
       teamAHands: streakResult.streak.teamAHands,
       teamBHands: streakResult.streak.teamBHands,
+      earlyBreak: isEarlyBreak ? true : undefined,
+      earlyBreakReason,
     });
 
     updatedMatch = checkMatchComplete(updatedMatch);

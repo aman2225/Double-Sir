@@ -133,6 +133,8 @@ export interface GameServerEvents {
     teamBHands: number;
     teamAPenalty: number;
     teamBPenalty: number;
+    earlyBreak?: boolean;
+    earlyBreakReason?: string;
   }) => void;
   "match:complete": (payload: {
     winningTeam: TeamId;

@@ -116,6 +116,13 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
   useEffect(() => {
     if (!lastHandComplete || lastHandComplete.key === seenHandKey.current) return;
     seenHandKey.current = lastHandComplete.key;
+    if (lastHandComplete.earlyBreak) {
+      if (lastHandComplete.bidSuccess) {
+        toast.success(`🏁 Hand Ended Early: ${lastHandComplete.earlyBreakReason ?? "Bid completed!"}`);
+      } else {
+        toast.error(`🏁 Hand Ended Early: ${lastHandComplete.earlyBreakReason ?? "Bid failed!"}`);
+      }
+    }
   }, [lastHandComplete]);
 
   // Computed unconditionally (roomState may still be null) so the hook
