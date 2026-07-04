@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useIdentity } from "@/hooks/useIdentity";
 import { useGameStore } from "@/store/useGameStore";
 import { GameTable, TableSeatInfo } from "@/components/game-table/GameTable";
+import { LocalPlayerTimer } from "@/components/game-table/LocalPlayerTimer";
 import { HandFan } from "@/components/cards/HandFan";
 import { BidPanel } from "@/components/bidding/BidPanel";
 import { LiveBidTrack } from "@/components/bidding/LiveBidTrack";
@@ -216,6 +217,9 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
             <Badge variant="outline" className="font-mono text-white border-white/20 bg-white/10">
               {roomCode}
             </Badge>
+            <Badge variant="secondary" className="font-mono text-xs text-amber-300 border-amber-500/30 bg-amber-500/10">
+              Target: {gameState.targetPoints ?? roomState.targetPoints ?? 53} Pts
+            </Badge>
             <span className="text-xs text-white/80">Hand #{gameState.handNumber}</span>
             {hand?.trumpSuit && (
               <span className={`flex items-center gap-1 text-sm font-semibold ${SUIT_META[hand.trumpSuit].color}`}>
@@ -236,8 +240,8 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <PenaltyBar team="A" penalty={gameState.teamAPenalty} />
-          <PenaltyBar team="B" penalty={gameState.teamBPenalty} />
+          <PenaltyBar team="A" penalty={gameState.teamAPenalty} targetPoints={gameState.targetPoints ?? roomState.targetPoints ?? 53} />
+          <PenaltyBar team="B" penalty={gameState.teamBPenalty} targetPoints={gameState.targetPoints ?? roomState.targetPoints ?? 53} />
         </div>
         {phase === "BIDDING" && hand && (
           <div className="flex justify-center pt-1">
@@ -277,6 +281,9 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
               <BidPanel mySeat={mySeat} highestBid={hand.bidding.highestBid} onBid={(value) => placeBid(roomCode, value)} />
             </div>
           )}
+          {isMyPlayTurn && hand?.turnDeadline && (
+            <LocalPlayerTimer deadline={hand.turnDeadline} className="-mb-1 pt-2 z-20" />
+          )}
         </AnimatePresence>
 
         <div className="flex w-full items-end justify-center gap-2 px-2">
@@ -302,7 +309,7 @@ export default function GamePage({ params }: { params: Promise<{ code: string }>
       <MusicPlayer roomCode={roomCode} isHost={isHost} />
 
       {isMyTrumpPick && hand?.bidding.highestBid && (
-        <TrumpPicker open declaredBid={hand.bidding.highestBid.value} onSelect={(suit) => selectTrump(roomCode, suit)} />
+        <TrumpPicker open declaredBid={hand.bidding.highestBid.value} myHand={myHand} onSelect={(suit) => selectTrump(roomCode, suit)} />
       )}
 
       {showHandCompleteModal && lastHandComplete && (

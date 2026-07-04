@@ -96,17 +96,27 @@ export default function RoomLobbyPage({ params }: { params: Promise<{ code: stri
             </Button>
           </CardHeader>
           <CardContent className="space-y-6">
-            {roomState && roomState.entryFee > 0 && (
-              <div className="flex items-center justify-center gap-4 rounded-lg border border-[var(--gold)]/20 bg-[var(--gold)]/5 px-3 py-2 text-sm">
-                <span>
-                  🪙 Entry: <strong>{roomState.entryFee.toLocaleString()}</strong>
+            {roomState && (
+              <div className="flex flex-wrap items-center justify-center gap-4 rounded-xl border border-[var(--gold)]/20 bg-[var(--gold)]/5 px-4 py-2.5 text-xs sm:text-sm shadow-inner">
+                <span className="font-semibold text-amber-300">
+                  🎯 Target Points: <strong>{roomState.targetPoints ?? 53} pts</strong>
                 </span>
+                <span className="opacity-40">•</span>
                 <span>
-                  🏆 Prize Pool: <strong>{roomState.prizePool.toLocaleString()}</strong>
+                  🔒 Room Type: <strong>{roomState.isPrivate ? "Private" : "Public"}</strong>
                 </span>
-                <span>
-                  Each Winner: <strong>+{(roomState.prizePool / 2).toLocaleString()}</strong>
-                </span>
+                {roomState.entryFee > 0 && (
+                  <>
+                    <span className="opacity-40">•</span>
+                    <span>
+                      🪙 Entry: <strong>{roomState.entryFee.toLocaleString()}</strong>
+                    </span>
+                    <span className="opacity-40">•</span>
+                    <span>
+                      🏆 Prize: <strong>+{(roomState.prizePool / 2).toLocaleString()}</strong>
+                    </span>
+                  </>
+                )}
               </div>
             )}
             {joinError ? (

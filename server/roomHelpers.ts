@@ -27,6 +27,9 @@ export function buildRoomStateView(session: GameSession): RoomStateView {
     roomName: session.roomName,
     entryFee: session.entryFee,
     prizePool: prizePool(session.entryFee),
+    targetPoints: session.targetPoints ?? 53,
+    isPrivate: session.isPrivate ?? true,
+    inviteCode: session.inviteCode ?? session.roomCode,
     players: [...session.seats.values()]
       .sort((a, b) => a.seat - b.seat)
       .map((o) => ({

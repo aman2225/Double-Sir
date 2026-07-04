@@ -34,6 +34,9 @@ export interface RoomStateView {
   roomName?: string;
   entryFee: number;
   prizePool: number;
+  targetPoints: number;
+  isPrivate: boolean;
+  inviteCode?: string;
 }
 
 /**
@@ -76,6 +79,7 @@ export interface PublicMatchState {
   teamBPenalty: number;
   dealerSeat: Seat;
   handNumber: number;
+  targetPoints: number;
   winningTeam?: TeamId;
   currentHand?: PublicHandState;
 }
@@ -87,7 +91,14 @@ export interface PublicMatchState {
 
 export interface GameClientEvents {
   "room:create": (
-    payload: { displayName: string; entryFee: number; roomName?: string },
+    payload: {
+      displayName: string;
+      entryFee: number;
+      roomName?: string;
+      targetPoints?: number;
+      isPrivate?: boolean;
+      inviteCode?: string;
+    },
     ack: (res: AckResult<{ roomCode: string }>) => void
   ) => void;
   "room:join": (payload: { roomCode: string; displayName: string }, ack: (res: AckResult<{ roomCode: string }>) => void) => void;

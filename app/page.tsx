@@ -21,6 +21,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { WalletBadge } from "@/components/wallet/WalletBadge";
 import { EntryFeeTierPicker } from "@/components/wallet/EntryFeeTierPicker";
 import { ENTRY_FEE_TIERS } from "@/lib/coinEconomy";
+import { CreateRoomModal } from "@/components/lobby/CreateRoomModal";
 
 export default function HomePage() {
   const router = useRouter();
@@ -39,6 +40,8 @@ export default function HomePage() {
   const [entryFee, setEntryFee] = useState<number>(ENTRY_FEE_TIERS[0].entryFee);
   const [busy, setBusy] = useState<"guest" | "create" | "join" | null>(null);
 
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
   useEffect(() => {
     if (player && !walletLoaded) fetchWallet();
   }, [player, walletLoaded, fetchWallet]);
@@ -52,11 +55,25 @@ export default function HomePage() {
     if (!result) toast.error("Couldn't start a guest session. Try again.");
   }
 
-  async function handleCreateRoom() {
+  async function handleCreateRoomSubmit(params: {
+    roomName: string;
+    entryFee: number;
+    targetPoints: number;
+    isPrivate: boolean;
+    inviteCode?: string;
+  }) {
     if (!player) return;
     setBusy("create");
-    const result = await createRoom(player.displayName, entryFee);
+    const result = await createRoom(
+      player.displayName,
+      params.entryFee,
+      params.roomName,
+      params.targetPoints,
+      params.isPrivate,
+      params.inviteCode
+    );
     setBusy(null);
+    setCreateModalOpen(false);
     if (result.ok && result.roomCode) {
       router.push(`/room/${result.roomCode}`);
     } else {
@@ -130,12 +147,12 @@ export default function HomePage() {
               </div>
 
               <Button
-                className="w-full"
+                className="w-full font-bold bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-black shadow-lg shadow-amber-500/20"
                 size="lg"
-                onClick={handleCreateRoom}
-                disabled={busy !== null || !connected || (walletLoaded && walletBalance < entryFee)}
+                onClick={() => setCreateModalOpen(true)}
+                disabled={busy !== null || !connected}
               >
-                {busy === "create" ? "Creating..." : `Create Room (${entryFee.toLocaleString()} coins)`}
+                Create Room & Options
               </Button>
 
               <div className="relative py-1 text-center text-xs text-muted-foreground">
@@ -208,6 +225,16 @@ export default function HomePage() {
           </Card>
         )}
       </motion.div>
+
+      <CreateRoomModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        walletBalance={walletBalance}
+        walletLoaded={walletLoaded}
+        connected={connected}
+        onCreateRoom={handleCreateRoomSubmit}
+        isSubmitting={busy === "create"}
+      />
     </main>
   );
 }

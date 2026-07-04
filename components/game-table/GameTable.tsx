@@ -111,6 +111,18 @@ export function GameTable({
       <div className="absolute left-3 top-1/2 -translate-y-1/2 sm:left-6">{renderSeat(leftSeat)}</div>
       <div className="absolute right-3 top-1/2 -translate-y-1/2 sm:right-6">{renderSeat(rightSeat)}</div>
 
+      {phase === "TRUMP_SELECTION" && biddingWinnerSeat !== mySeat && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-[var(--gold)]/30 bg-black/80 px-6 py-4 shadow-2xl animate-pulse">
+            <span className="text-2xl">♠ ♥ ♦ ♣</span>
+            <p className="text-base font-bold text-[var(--gold)]">
+              {seatInfo[biddingWinnerSeat ?? 1]?.displayName || "Winning bidder"} is selecting Trump...
+            </p>
+            <p className="text-xs text-white/70">Waiting for Trump Selection...</p>
+          </div>
+        </div>
+      )}
+
       <TrickArea
         currentTrick={currentTrick}
         mySeat={mySeat}

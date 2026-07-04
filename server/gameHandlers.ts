@@ -74,7 +74,7 @@ async function startNewMatchAndHand(session: GameSession) {
     }
 
     try {
-      session.match = createMatch(session.roomCode);
+      session.match = createMatch(session.roomCode, session.targetPoints);
       await startHandFlow(session);
     } catch (err) {
       if (session.entryFee > 0) {
@@ -193,7 +193,7 @@ export async function applyCardPlay(io: AppServer, session: GameSession, seat: S
 export function registerGameHandlers(io: AppServer, socket: AppSocket) {
   const player = socket.data.player;
 
-  socket.on("room:create", ({ displayName, entryFee, roomName }, ack) => {
+  socket.on("room:create", ({ displayName, entryFee, roomName, targetPoints, isPrivate, inviteCode }, ack) => {
     // A client could theoretically omit the ack callback despite the typed
     // contract requiring one (TypeScript only enforces this at compile
     // time) — fall back to a no-op so a malformed call can't throw mid-handler
@@ -205,8 +205,22 @@ export function registerGameHandlers(io: AppServer, socket: AppSocket) {
           safeAck({ ok: false, error: "Invalid entry fee — choose one of the listed room tiers." });
           return;
         }
-        const room = await createRoomInDb(player.playerProfileId, entryFee, roomName, true);
-        const session = new GameSession(room.code, room.id, player.playerProfileId, entryFee, roomName ?? undefined, true);
+        let validTarget = 53;
+        if (typeof targetPoints === "number" && !isNaN(targetPoints)) {
+          validTarget = Math.max(20, Math.min(500, Math.round(targetPoints)));
+        }
+        const priv = isPrivate ?? true;
+        const room = await createRoomInDb(player.playerProfileId, entryFee, roomName, priv);
+        const session = new GameSession(
+          room.code,
+          room.id,
+          player.playerProfileId,
+          entryFee,
+          roomName ?? undefined,
+          priv,
+          validTarget,
+          inviteCode
+        );
         session.addOccupant(1, player.playerProfileId, displayName || player.displayName, player.avatarUrl, socket.id);
         createSession(session);
         socket.join(room.code);

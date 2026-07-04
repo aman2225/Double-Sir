@@ -59,11 +59,13 @@ export class GameSession {
   music: MusicState = initialMusicState();
   musicTimer?: NodeJS.Timeout;
 
-  // --- Coin economy ------------------------------------------------------
+  // --- Coin economy & Room settings ---------------------------------------
   /** Fixed tier amount in coins (see lib/coinEconomy.ts); 0 = no entry fee. */
   entryFee: number = 0;
   roomName?: string;
   isPrivate: boolean = true;
+  targetPoints: number = 53;
+  inviteCode?: string;
   /**
    * Re-entrancy lock for game:start — set synchronously before the first
    * await in the handler, so two rapid game:start emits from the same
@@ -73,13 +75,24 @@ export class GameSession {
    */
   startingMatch: boolean = false;
 
-  constructor(roomCode: string, roomId: string, hostPlayerProfileId: string, entryFee = 0, roomName?: string, isPrivate = true) {
+  constructor(
+    roomCode: string,
+    roomId: string,
+    hostPlayerProfileId: string,
+    entryFee = 0,
+    roomName?: string,
+    isPrivate = true,
+    targetPoints = 53,
+    inviteCode?: string
+  ) {
     this.roomCode = roomCode;
     this.roomId = roomId;
     this.hostPlayerProfileId = hostPlayerProfileId;
     this.entryFee = entryFee;
     this.roomName = roomName;
     this.isPrivate = isPrivate;
+    this.targetPoints = targetPoints;
+    this.inviteCode = inviteCode ?? roomCode;
   }
 
   get isFull(): boolean {

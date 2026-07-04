@@ -1,4 +1,14 @@
-import { Card, RANK_ORDER, SUITS, Seat, SEATS } from "./types";
+import { Card, RANK_ORDER, SUITS, SUIT_ORDER, Seat, SEATS, rankValue } from "./types";
+
+/** Sorts cards by suit first (Spades, Hearts, Diamonds, Clubs), then by rank descending (A down to 2). */
+export function sortCards(cards: Card[]): Card[] {
+  return [...cards].sort((a, b) => {
+    if (a.suit !== b.suit) {
+      return SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit];
+    }
+    return rankValue(b.rank) - rankValue(a.rank);
+  });
+}
 
 /** Builds an ordered standard 52-card deck (unshuffled). */
 export function buildDeck(): Card[] {
@@ -58,7 +68,7 @@ export function dealInitial(shuffledDeck: Card[]): InitialDeal {
 
   let cursor = 0;
   for (const seat of SEATS) {
-    hands[seat] = shuffledDeck.slice(cursor, cursor + 5);
+    hands[seat] = sortCards(shuffledDeck.slice(cursor, cursor + 5));
     cursor += 5;
   }
   const undealt = shuffledDeck.slice(cursor);

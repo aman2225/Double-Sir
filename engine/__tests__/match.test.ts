@@ -48,4 +48,15 @@ describe("match lifecycle", () => {
     const result = checkMatchComplete(decided);
     expect(result.winningTeam).toBe("B");
   });
+
+  it("supports custom target points limit (e.g., 101 points)", () => {
+    const match = createMatch("room-1", 101);
+    expect(match.targetPoints).toBe(101);
+
+    const ongoing = { ...match, teamAPenalty: 60, teamBPenalty: 90 };
+    expect(checkMatchComplete(ongoing).winningTeam).toBeUndefined();
+
+    const lost = { ...match, teamAPenalty: 50, teamBPenalty: 101 };
+    expect(checkMatchComplete(lost).winningTeam).toBe("A");
+  });
 });

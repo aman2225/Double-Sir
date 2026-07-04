@@ -150,12 +150,20 @@ export interface HandState {
   earlyBreakReason?: string;
 }
 
+export const SUIT_ORDER: Record<Suit, number> = {
+  SPADES: 0,
+  HEARTS: 1,
+  DIAMONDS: 2,
+  CLUBS: 3,
+};
+
 export interface MatchState {
   roomId: string;
   teamAPenalty: number;
   teamBPenalty: number;
   dealerSeat: Seat;
   handNumber: number;
+  targetPoints?: number;
   winningTeam?: TeamId;
   currentHand?: HandState;
   completedHands: HandState[];

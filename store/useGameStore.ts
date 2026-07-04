@@ -73,7 +73,14 @@ interface GameStoreState {
   connect: (token: string) => void;
   disconnect: () => void;
 
-  createRoom: (displayName: string, entryFee: number, roomName?: string) => Promise<{ ok: boolean; roomCode?: string; error?: string }>;
+  createRoom: (
+    displayName: string,
+    entryFee: number,
+    roomName?: string,
+    targetPoints?: number,
+    isPrivate?: boolean,
+    inviteCode?: string
+  ) => Promise<{ ok: boolean; roomCode?: string; error?: string }>;
   joinRoom: (roomCode: string, displayName: string) => Promise<{ ok: boolean; roomCode?: string; error?: string }>;
   leaveRoom: (roomCode: string) => void;
   startGame: (roomCode: string) => void;
@@ -197,14 +204,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  createRoom: (displayName, entryFee, roomName) =>
+  createRoom: (displayName, entryFee, roomName, targetPoints, isPrivate, inviteCode) =>
     new Promise((resolve) => {
       const socket = get().socket;
       if (!socket) {
         resolve({ ok: false, error: "Not connected." });
         return;
       }
-      socket.emit("room:create", { displayName, entryFee, roomName }, (res) => {
+      socket.emit("room:create", { displayName, entryFee, roomName, targetPoints, isPrivate, inviteCode }, (res) => {
         if (res.ok && res.data?.roomCode) set({ currentRoomCode: res.data.roomCode, currentDisplayName: displayName });
         resolve({ ok: res.ok, roomCode: res.data?.roomCode, error: res.error });
       });

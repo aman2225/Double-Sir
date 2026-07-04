@@ -5,7 +5,7 @@
 // player, or a replay tool.
 
 import { applyBid, validateBid } from "./bidding";
-import { dealRemaining } from "./deck";
+import { dealRemaining, sortCards } from "./deck";
 import { computeHandPenalty } from "./scoring";
 import { assertHandInvariant, recordTrickWin } from "./streak";
 import { isLegalPlay, resolveTrick } from "./trick";
@@ -94,7 +94,7 @@ function handleSelectTrump(match: MatchState, seat: Seat, suit: Suit): ActionRes
   const dealt = dealRemaining(hand.undealt);
   const players = { ...hand.players };
   for (const s of Object.keys(players).map(Number) as Seat[]) {
-    players[s] = { seat: s, hand: [...players[s].hand, ...dealt[s]] };
+    players[s] = { seat: s, hand: sortCards([...players[s].hand, ...dealt[s]]) };
   }
 
   const updatedHand: HandState = {

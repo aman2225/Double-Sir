@@ -40,6 +40,7 @@ export function redactMatchForSeat(match: MatchState, viewerSeat: Seat, turnDead
     teamBPenalty: match.teamBPenalty,
     dealerSeat: match.dealerSeat,
     handNumber: match.handNumber,
+    targetPoints: match.targetPoints ?? 53,
     winningTeam: match.winningTeam,
     currentHand: match.currentHand ? redactHand(match.currentHand, viewerSeat, turnDeadline) : undefined,
   };

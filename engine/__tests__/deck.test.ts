@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildDeck, dealInitial, dealRemaining, shuffleDeck } from "../deck";
-import { cardId } from "../types";
+import { buildDeck, dealInitial, dealRemaining, shuffleDeck, sortCards } from "../deck";
+import { Card, cardId } from "../types";
 
 describe("deck", () => {
   it("builds a standard 52-card deck with no duplicates", () => {
@@ -46,5 +46,29 @@ describe("deck", () => {
     const allRest = [...rest[1], ...rest[2], ...rest[3], ...rest[4]];
     expect(allRest).toHaveLength(32);
     expect(new Set(allRest.map(cardId)).size).toBe(32);
+  });
+
+  it("sortCards sorts cards by suit order (Spades, Hearts, Diamonds, Clubs) and rank descending (A -> 2)", () => {
+    const unsorted: Card[] = [
+      { suit: "CLUBS", rank: "4" },
+      { suit: "DIAMONDS", rank: "A" },
+      { suit: "SPADES", rank: "7" },
+      { suit: "HEARTS", rank: "K" },
+      { suit: "SPADES", rank: "A" },
+      { suit: "CLUBS", rank: "J" },
+      { suit: "HEARTS", rank: "3" },
+      { suit: "DIAMONDS", rank: "10" },
+    ];
+    const sorted = sortCards(unsorted);
+    expect(sorted).toEqual([
+      { suit: "SPADES", rank: "A" },
+      { suit: "SPADES", rank: "7" },
+      { suit: "HEARTS", rank: "K" },
+      { suit: "HEARTS", rank: "3" },
+      { suit: "DIAMONDS", rank: "A" },
+      { suit: "DIAMONDS", rank: "10" },
+      { suit: "CLUBS", rank: "J" },
+      { suit: "CLUBS", rank: "4" },
+    ]);
   });
 });

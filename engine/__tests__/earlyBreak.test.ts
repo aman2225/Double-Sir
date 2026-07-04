@@ -8,7 +8,14 @@ function dispatch(match: MatchState, action: GameAction) {
   return applyAction(match, action);
 }
 
-function setupPlayingHand(bidderSeat: Seat, declaredBid: number, initialStreak?: Partial<StreakState>): MatchState {
+import { sortCards } from "../deck";
+
+function setupPlayingHand(
+  bidderSeat: Seat,
+  declaredBid: number,
+  initialStreak?: Partial<StreakState>,
+  ensureBidderWins = false
+): MatchState {
   const match = createMatch("room-early-break");
   let r = dispatch(match, { type: "START_HAND", shuffleSeed: "seed-early-break-test" });
 
@@ -22,6 +29,33 @@ function setupPlayingHand(bidderSeat: Seat, declaredBid: number, initialStreak?:
   }
 
   r = dispatch(r.state, { type: "SELECT_TRUMP", seat: bidderSeat, suit: "SPADES" });
+
+  if (ensureBidderWins && r.state.currentHand) {
+    const aceSpades = { suit: "SPADES" as const, rank: "A" as const };
+    const players = { ...r.state.currentHand.players };
+    for (const s of [1, 2, 3, 4] as Seat[]) {
+      // Remove Ace of Spades from other players if they have it
+      players[s] = {
+        ...players[s],
+        hand: players[s].hand.filter((c) => !(c.suit === "SPADES" && c.rank === "A")),
+      };
+    }
+    // Give Ace of Spades to bidder and sort
+    players[bidderSeat] = {
+      ...players[bidderSeat],
+      hand: sortCards([aceSpades, ...players[bidderSeat].hand]),
+    };
+    r = {
+      ...r,
+      state: {
+        ...r.state,
+        currentHand: {
+          ...r.state.currentHand,
+          players,
+        },
+      },
+    };
+  }
 
   if (initialStreak && r.state.currentHand) {
     r = {
@@ -62,14 +96,19 @@ describe("Early Game Termination (Break Condition)", () => {
   it("triggers Early Success immediately when bidder team reaches declared bid", () => {
     // Bidder Seat 1 (Team A) bids 7
     // Set streak state as if Team A has 6 hands and Seat 1 is on an established streak
-    let state = setupPlayingHand(1, 7, {
-      teamAHands: 6,
-      teamBHands: 0,
-      currentStreakPlayer: 1,
-      currentStreakCount: 2,
-      streakEstablished: true,
-      unclaimedHands: 0,
-    });
+    let state = setupPlayingHand(
+      1,
+      7,
+      {
+        teamAHands: 6,
+        teamBHands: 0,
+        currentStreakPlayer: 1,
+        currentStreakCount: 2,
+        streakEstablished: true,
+        unclaimedHands: 0,
+      },
+      true
+    );
 
     // Play 1 trick using legal plays
     state = playLegalTrick(state);

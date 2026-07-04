@@ -16,13 +16,14 @@ import { initialBiddingState } from "./bidding";
 import { buildDeck, dealInitial, shuffleDeck } from "./deck";
 import { HandState, MATCH_LOSS_THRESHOLD, MatchState, SEATS, TeamId, initialStreakState, nextSeat } from "./types";
 
-export function createMatch(roomId: string): MatchState {
+export function createMatch(roomId: string, targetPoints: number = MATCH_LOSS_THRESHOLD): MatchState {
   return {
     roomId,
     teamAPenalty: 0,
     teamBPenalty: 0,
     dealerSeat: 1,
     handNumber: 0,
+    targetPoints,
     completedHands: [],
   };
 }
@@ -69,8 +70,9 @@ export function prepareNextHand(match: MatchState): MatchState {
 export function checkMatchComplete(match: MatchState): MatchState {
   if (match.winningTeam) return match;
 
-  const teamALost = match.teamAPenalty >= MATCH_LOSS_THRESHOLD;
-  const teamBLost = match.teamBPenalty >= MATCH_LOSS_THRESHOLD;
+  const threshold = match.targetPoints ?? MATCH_LOSS_THRESHOLD;
+  const teamALost = match.teamAPenalty >= threshold;
+  const teamBLost = match.teamBPenalty >= threshold;
 
   if (!teamALost && !teamBLost) return match;
 
